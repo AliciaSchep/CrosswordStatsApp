@@ -2,9 +2,15 @@ library(shiny)
 library(shinydashboard)
 library(DT)
 library(r2d3)
+library(shinycssloaders)
+library(sparkline)
 source("helpers.R")
 
 DATA_URL <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eezEaq1jXWy4Sr8QDsOR9ZtGQQrXQhPN6cpgEHbWcDB20D_p6O-HD3Pefscub9L/pub?gid=0&single=true&output=csv"
+
+# Hacky approach for detecting click... using instead of an actionButton so that formatting is same as all the menu items
+refresh_menu <- menuItem("Refresh", href = "#", icon = icon("refresh"), newtab = FALSE)
+refresh_menu$children[[1]]$attribs['onclick'] <- "Shiny.onInputChange('refreshLink','refresh'); return false"
 
 ui <- dashboardPage(
   dashboardHeader(title = "Crossword Stats"),
@@ -13,14 +19,15 @@ ui <- dashboardPage(
       menuItem("Summary", tabName = "Summary", icon = icon("dashboard")),
       menuItem("Trends", tabName = "Trends", icon = icon("chart-line")),
       menuItem("About", tabName = "About", icon = icon("question")),
-      actionButton("refreshButton", "Refresh")
+      menuItem("Source", href = "https://github.com/AliciaSchep/CrosswordStatsApp", icon = icon("code")),
+      refresh_menu
     )
   ),
   dashboardBody(
     tabItems(
       tabItem("Summary",
           fluidRow(
-            valueBoxOutput("solveNumber", width = 4),
+            withSpinner(valueBoxOutput("solveNumber", width = 4), proxy.height = "100px"),
             valueBoxOutput("currentStreak", width = 4),
             valueBoxOutput("longestStreak", width = 4)
           ),
@@ -30,6 +37,7 @@ ui <- dashboardPage(
           ),
           fluidRow(
             box(d3Output("completionCalendar", height = "150px"), 
+                p("Hover over square to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
               width = 12,
               title = "Puzzle Completions in Past Year (Colored by Streak)")
           )
@@ -46,7 +54,9 @@ ui <- dashboardPage(
                tabPanel('Saturday',ggiraphOutput('trendPlotSat', height = "600px")),
                tabPanel('Sunday',ggiraphOutput('trendPlotSun', height = "600px")),
                width = 12
-          ))),
+               ),
+            box(p("Hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),width = 12)
+          )),
       tabItem("About",
           fluidRow(
             box(
@@ -84,12 +94,12 @@ server <- function(input, output, session) {
   
   c_data <- reactive({
     # Re-read the data either after refresh button pressed or enought time elapsed
-    r <- input$refreshButton
+    input$refreshLink
     invalidateLater(1000000)
     readr::read_csv(DATA_URL)
   })
   
-  
+
   output$solveNumber <- renderValueBox({
     
     valueBox(
@@ -114,7 +124,7 @@ server <- function(input, output, session) {
     valueBox(
       value = current_streak,
       subtitle = "Current Streak Length",
-      icon = icon("area-chart"),
+      icon = icon("calendar-check"),
       color = "purple"
     )
   })
@@ -128,7 +138,7 @@ server <- function(input, output, session) {
     valueBox(
       value = max_streak,
       subtitle = "Max Streak Length",
-      icon = icon("area-chart"),
+      icon = icon("certificate"),
       color = "purple"
     )
   })

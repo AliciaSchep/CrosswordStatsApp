@@ -1,4 +1,4 @@
-// !preview r2d3 data = read.csv("https://raw.githubusercontent.com/rstudio/r2d3/master/vignettes/gallery/calendar/dji-latest.csv"), d3_version = 4, container = "div", options = list(end = "2010-9-10", fill = 'Open', min = 5000, max = 15000, colors = c("#a50026", "#d73027", "#f46d43", "#fdae61", "#fee08b", "#ffffbf", "#d9ef8b", "#a6d96a", "#66bd63", "#1a9850", "#006837"), dates = "Date", endDate = '2010-08-31',tooltip = 'Open')
+// !preview r2d3 data = readr::read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eezEaq1jXWy4Sr8QDsOR9ZtGQQrXQhPN6cpgEHbWcDB20D_p6O-HD3Pefscub9L/pub?gid=0&single=true&output=csv") %>% mutate(opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), grp = cumsum(opens),col = grp %% 4,Day =  lubridate::wday(Date, label = TRUE),tooltip = glue::glue("Date: {Date} ({Day}) <br/> Solve Time: {Duration}<br>"),links = glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}")) , d3_version = 4, container = "div", options = list(min = 1, max = 4, colors = c("#1B9E77","#D95F02","#7570B3","#E7298A"), endDate = lubridate::today())
 
 // Based on https://rstudio.github.io/r2d3/articles/gallery/calendar/
 // which was based on https://bl.ocks.org/mbostock/4063318
@@ -67,17 +67,15 @@ svg.selectAll("text.month")
 
 r2d3.onRender(function(csv, div, width, height, options) {
   var data = d3.nest()
-      .key(function(d) { return d[options.dates]; })
-      .rollup(function(d) { return d[0][options.fill]; })
+      .key(function(d) { return d['Date']; })
+      .rollup(function(d) { return [d[0]['col'], d[0]['tooltip'], d[0]['links']]; })
     .object(csv);
-  
-  var tool = d3.nest()
-      .key(function(d) { return d[options.dates]; })
-      .rollup(function(d) { return d[0][options.tooltip]; })
-    .object(csv);
+    
 
   rect.filter(function(d) { return d in data; })
-      .attr("fill", function(d) { return color(data[d]); })
+      .attr("fill", function(d) { return color(data[d][0]); })
+    .on("click", function(d) {window.open(data[d][2]);})
     .append("title")
-      .text(function(d) { return d + ": " + tool[d]; });
+      .html(function(d) {return data[d][1]; });
+
 });

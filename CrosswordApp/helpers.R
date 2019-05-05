@@ -60,39 +60,28 @@ plot_over_time <- function(df, day = NULL){
   girafe(ggobj = p)
 }
 
-calendar_plot <- function(x, dates, fill,
-                          tooltip = fill,
-                          colors = RColorBrewer::brewer.pal(7, "BuPu"),
-                          color_min = NULL,
-                          color_max = NULL,
-                          endDate = NULL,
-                          legend = NULL){
-  
-  opt_list <- list(
-    dates = dates,
-    fill = fill,
-    colors = colors,
-    min = if (is.null(color_min)) min(x[[fill]]) else color_min,
-    max = if (is.null(color_max)) max(x[[fill]]) else color_max,
-    endDate = if (is.null(endDate)) lubridate::today() else endDate,
-    tooltip = tooltip
-  )
-  
-  d3_file <- "calendar_plot.js"
-  
-  r2d3::r2d3(x, options = opt_list, script = d3_file, d3_version = 4, container = "div")
-  
-}
-
-
 
 completion_calendar <- function(df){
   n_col <- 4
   df <- df %>% 
     mutate(opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), 
            grp = cumsum(opens),
-           col = grp %% n_col) 
-  calendar_plot(df, "Date","col", tooltip = "Duration", colors = RColorBrewer::brewer.pal(n_col, "Dark2"))
+           col = grp %% n_col,
+           Day =  lubridate::wday(Date, label = TRUE),
+           tooltip = glue::glue("Date: {Date} ({Day}) <br/> Solve Time: {Duration}<br>"),
+           links = glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}")) 
+  
+  opt_list <- list(
+    colors = RColorBrewer::brewer.pal(n_col, "Dark2"),
+    min = 1,
+    max = n_col,
+    endDate = lubridate::today()
+  )
+  
+  d3_file <- "calendar_plot.js"
+  
+  r2d3::r2d3(df, options = opt_list, script = d3_file, d3_version = 4, container = "div")
+  
 }
 
 

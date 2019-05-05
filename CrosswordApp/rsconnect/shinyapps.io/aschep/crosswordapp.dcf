@@ -1,0 +1,10 @@
+name: crosswordapp
+title:
+username:
+account: aschep
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 910019
+bundleId: 2060964
+url: https://aschep.shinyapps.io/crosswordapp/
+when: 1557028937.5731
