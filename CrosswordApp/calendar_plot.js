@@ -1,6 +1,7 @@
 // !preview r2d3 data = read.csv("https://raw.githubusercontent.com/rstudio/r2d3/master/vignettes/gallery/calendar/dji-latest.csv"), d3_version = 4, container = "div", options = list(end = "2010-9-10", fill = 'Open', min = 5000, max = 15000, colors = c("#a50026", "#d73027", "#f46d43", "#fdae61", "#fee08b", "#ffffbf", "#d9ef8b", "#a6d96a", "#66bd63", "#1a9850", "#006837"), dates = "Date", endDate = '2010-08-31',tooltip = 'Open')
 
-// Based on https://bl.ocks.org/mbostock/4063318
+// Based on https://rstudio.github.io/r2d3/articles/gallery/calendar/
+// which was based on https://bl.ocks.org/mbostock/4063318
 
 var margin_top = 25;
 var cellSize;

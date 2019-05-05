@@ -96,4 +96,30 @@ completion_calendar <- function(df){
 }
 
 
-
+dow_summary_table <- function(df){
+  df <- get_dow_stats(df)
+  r <- range(df$Vals)
+  
+  cd <- list(list(targets = 3, 
+                  render = JS("function(data, type, full){ return '<span class=sparkBox>' + data + '</span>' }")), 
+             list(targets = 4,
+                  render = JS("function(data, type, full){ return '<span class=sparkLine>' + data + '</span>' }")))
+  box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'orange', boxLineColor: 'black',",
+                       "chartRangeMin: ", r[1], ", chartRangeMax: ", r[2])
+  line_string <- "type: 'line', lineColor: 'black', fillColor: '#ccc', highlightLineColor: 'orange', highlightSpotColor: 'orange'"
+  
+  cb <- JS(paste0("function (oSettings, json) {
+          $('.sparkLine:not(:has(canvas))').sparkline('html', { ", 
+                  line_string, " });
+          $('.sparkBox:not(:has(canvas))').sparkline('html', { ", 
+                  box_string, " });
+        }"), collapse = "")
+  
+  d <- datatable(df[,1:5], rownames = FALSE, 
+                 options = list(columnDefs = cd, fnDrawCallback = cb, paging = FALSE, searching = FALSE,
+                                ordering = FALSE),
+                 autoHideNavigation = TRUE)
+  
+  d$dependencies <- append(d$dependencies, htmlwidgets:::getDependency("sparkline"))
+  d
+}
