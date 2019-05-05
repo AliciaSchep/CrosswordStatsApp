@@ -36,7 +36,7 @@ ui <- dashboardPage(
               title = "Summary by Day-of-Week")
           ),
           fluidRow(
-            box(d3Output("completionCalendar", height = "150px"), 
+            box(d3Output("completionCalendar", height = "140px"), 
                 p("Hover over square to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
               width = 12,
               title = "Puzzle Completions in Past Year (Colored by Streak)")
@@ -62,20 +62,20 @@ ui <- dashboardPage(
             box(
               h3("What"),
               p("This is a dashboard showing my stats for the NYT Crossword. Only puzzles solved same-day (valid for streak) are shown.",
-                " The data was manually \U0001f620 entered into a google sheet that is read in by this dashboard."),
+                " The data was manually (\U0001f620) entered into a google sheet that is read in by this dashboard."),
               h3("Who"),
               p("This dashboard was created by Alicia Schep. Most of these puzzled were solved in collaboration with my partner."),
               h3("Why"),
-              p("As a professional data person, I am quite frustrated by the lack of detail on the NYT's Crossword statistics page ",
-                "(and down-right outraged by the improper scaling of the barchart). I want to be able to understand whether I am getting",
-                " faster, and other trends by day of week. This dashboard is meant to showcase some more informative visualizations possible!"),
+              p("I am quite frustrated by the lack of detail on the NYT's Crossword statistics page ",
+                "(and down-right outraged by the improper scaling of the bar chart). I want to be able to understand whether I am getting",
+                " faster and see trends by day of week. This dashboard is meant to showcase some more useful visualizations for crossword statistics!"),
               h3("Acknowledgments"),
               p("This dashboard was made possible by open source projects, including shiny, DT, sparkline, shinydashboard, ggplot2, ggiraph, and r2d3. ","
                 Thanks also to those who have contributed documentation and blogs on using those tools; this", 
                 a("post by Matt Leonawicz",
                   href="https://leonawicz.github.io/HtmlWidgetExamples/ex_dt_sparkline.html"),
-              "was especially helpful for getting the sparklines into the DT table.",
-              " And thanks to the NYT & contributors for providing fun & challenging puzzles... ",
+              "was especially helpful for getting the sparklines into the DT table."),
+              p(" And thanks to the NYT & contributors for providing fun & challenging puzzles... ",
               "although I hope more investment in the Crossword statistics page will be forthcoming \U0001F600"),
               width = 12
             )
