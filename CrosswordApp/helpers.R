@@ -1,8 +1,11 @@
 library(dplyr)
 library(ggplot2)
 library(ggiraph)
+library(DT)
 
 get_streaks <- function(df){
+  # Take in dataframe of stats (with columns Date and Duration)
+  # return dataframe with streaks -- sindex, tart date for streak, and streak len
   df %>% 
     mutate(opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), 
          grp = cumsum(opens)) %>% 
@@ -11,31 +14,66 @@ get_streaks <- function(df){
 }
 
 get_dow_stats <- function(df){
+  # Take in dataframe of stats (with columns Date and Duration)
+  # return a summary table with stats
+  # Some of the columns are raw data meant to be used by sparkline
+  # as in dow_summary_table function
   df %>% 
     mutate(Day =  lubridate::wday(Date, label = TRUE), 
            o = lubridate::wday(Date, week_start = 1)) %>%
     group_by(Day,o) %>% 
     summarize(Fastest = as.character(hms::hms(as.numeric(min(Duration)))), 
               Median = as.character(hms::hms(as.numeric(median(Duration)))),
-              Boxplot = paste(round(as.numeric(Duration)/60),collapse = ","),
-              Trend = paste(Date - min(df$Date), round(as.numeric(Duration)/60),sep = ":", collapse = ","),
-              Vals = list(as.numeric(Duration)/60)) %>% 
+              Boxplot = paste(round(as.numeric(Duration)
+                                    ),collapse = ","),
+              Trend = paste(Date - min(df$Date), round(as.numeric(Duration)#/60
+                                                       ),sep = ":", collapse = ","),
+              Vals = list(as.numeric(Duration)
+                          )) %>% 
     ungroup() %>% 
     arrange(o) %>% 
     select(-o)
 }
 
-time_break <- function(x){
-  l <- 0
-  u <- if (x[2] < lubridate::minutes(10)){
-    hms::trunc_hms(x[2],60)
-  } else {
-    hms::trunc_hms(x[2],60*10)
-  }
-  c(l,u)
+dow_summary_table <- function(df){
+  # Make a DT table with summary stats.
+  # calls get_dow_stats for computation of summary stats
+  # df input should be crossword data with Date and Duration columns
+  df <- get_dow_stats(df)
+  r <- range(df$Vals)
+  
+  cd <- list(list(targets = 3, 
+                  render = JS("function(data, type, full){ return '<span class=sparkBox>' + data + '</span>' }")), 
+             list(targets = 4,
+                  render = JS("function(data, type, full){ return '<span class=sparkLine>' + data + '</span>' }")))
+  box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'orange', boxLineColor: 'black',",
+                       "chartRangeMin: ", r[1], ", chartRangeMax: ", r[2],
+                       ", numberFormatter: function(x){ var d = new Date(null); d.setSeconds(x); var ts = d.toISOString().substr(11,8); return ts;}") 
+  line_string <- paste0("type: 'line', lineColor: 'black', fillColor: '#ccc', highlightLineColor: 'orange', highlightSpotColor: 'orange'",
+                        ", numberFormatter: function(x){ var d = new Date(null); d.setSeconds(x); var ts = d.toISOString().substr(11,8); return ts;}") 
+  
+  
+  cb <- JS(paste0("function (oSettings, json) {
+          $('.sparkLine:not(:has(canvas))').sparkline('html', { ", 
+                  line_string, " });
+          $('.sparkBox:not(:has(canvas))').sparkline('html', { ", 
+                  box_string, " });
+        }"), collapse = "")
+  
+  d <- datatable(df[,1:5], rownames = FALSE, 
+                 options = list(columnDefs = cd, fnDrawCallback = cb, paging = FALSE, searching = FALSE,
+                                ordering = FALSE),
+                 autoHideNavigation = TRUE)
+  
+  d$dependencies <- append(d$dependencies, htmlwidgets:::getDependency("sparkline"))
+  d
 }
 
+
 plot_over_time <- function(df, day = NULL){
+  # Plot duration over time
+  # df input should be crossword data with Date and Duration columns
+  # If day argument is provided, only plot for single day
   if (!is.null(day)){
     df <- df %>% filter((lubridate::wday(Date, label = TRUE) == day))
   }
@@ -62,6 +100,8 @@ plot_over_time <- function(df, day = NULL){
 
 
 completion_calendar <- function(df){
+  # Make calendar plot showing days of completion, colored by streak
+  # df input should be crossword data with Date and Duration columns
   n_col <- 4
   df <- df %>% 
     mutate(opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), 
@@ -85,30 +125,3 @@ completion_calendar <- function(df){
 }
 
 
-dow_summary_table <- function(df){
-  df <- get_dow_stats(df)
-  r <- range(df$Vals)
-  
-  cd <- list(list(targets = 3, 
-                  render = JS("function(data, type, full){ return '<span class=sparkBox>' + data + '</span>' }")), 
-             list(targets = 4,
-                  render = JS("function(data, type, full){ return '<span class=sparkLine>' + data + '</span>' }")))
-  box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'orange', boxLineColor: 'black',",
-                       "chartRangeMin: ", r[1], ", chartRangeMax: ", r[2])
-  line_string <- "type: 'line', lineColor: 'black', fillColor: '#ccc', highlightLineColor: 'orange', highlightSpotColor: 'orange'"
-  
-  cb <- JS(paste0("function (oSettings, json) {
-          $('.sparkLine:not(:has(canvas))').sparkline('html', { ", 
-                  line_string, " });
-          $('.sparkBox:not(:has(canvas))').sparkline('html', { ", 
-                  box_string, " });
-        }"), collapse = "")
-  
-  d <- datatable(df[,1:5], rownames = FALSE, 
-                 options = list(columnDefs = cd, fnDrawCallback = cb, paging = FALSE, searching = FALSE,
-                                ordering = FALSE),
-                 autoHideNavigation = TRUE)
-  
-  d$dependencies <- append(d$dependencies, htmlwidgets:::getDependency("sparkline"))
-  d
-}
