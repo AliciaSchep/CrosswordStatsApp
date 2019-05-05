@@ -35,25 +35,6 @@ time_break <- function(x){
   c(l,u)
 }
 
-# plot_over_time <- function(df){
-#   
-#   df %>%  
-#     mutate(Day =  factor(lubridate::wday(Date, label = TRUE),
-#                          ordered = TRUE,
-#                          levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"))) %>%
-#     ggplot(aes(x = Date, y = Duration, color = Day)) + 
-#     geom_smooth() +
-#     geom_point() + 
-#     facet_grid(rows = vars(Day), scales = "free_y") +
-#     theme_bw() +
-#     ylab("Solve Time") +
-#     scale_color_brewer(palette = "Dark2", guide = FALSE) +
-#     scale_y_time(breaks = time_break, 
-#                  expand = expand_scale(add = c(0,0), 
-#                                        mult = c(0,.15)))
-#   
-# }
-
 plot_over_time <- function(df, day = NULL){
   if (!is.null(day)){
     df <- df %>% filter((lubridate::wday(Date, label = TRUE) == day))
@@ -78,31 +59,6 @@ plot_over_time <- function(df, day = NULL){
   }
   girafe(ggobj = p)
 }
-
-# animation_by_dow <- function(df){
-#   
-#   tmp <- df %>%
-#     mutate(day =  factor(lubridate::wday(Date, label = TRUE),
-#                          ordered = TRUE,
-#                          levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")),
-#            week = paste0(lubridate::year(Date),'-',lubridate::week(Date))) 
-#   
-#   expanded <- purrr::map_dfr(unique(tmp$week), function(x){
-#     tmp %>% filter(week <= x) %>% mutate(week2 = x)
-#     })
-#   
-#   expanded %>% 
-#     ggplot(aes(x = day, y = Duration, color = day)) + 
-#     geom_boxplot() +
-#     #geom_jitter(
-#     #  position = position_jitter(width = 0.25, height = 0)) + 
-#     scale_color_brewer(palette = "Dark2") +
-#     theme_bw() + 
-#     transition_states(week2) +
-#     ease_aes("cubic-in-out")
-# }
-
-
 
 calendar_plot <- function(x, dates, fill,
                           tooltip = fill,
