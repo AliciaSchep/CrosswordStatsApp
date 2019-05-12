@@ -12,6 +12,7 @@ DATA_URL <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eez
 refresh_menu <- menuItem("Refresh", href = "#", icon = icon("refresh"), newtab = FALSE)
 refresh_menu$children[[1]]$attribs['onclick'] <- "Shiny.onInputChange('refreshLink','refresh'); return false"
 
+
 ui <- dashboardPage(
   dashboardHeader(title = "Crossword Stats"),
   dashboardSidebar(

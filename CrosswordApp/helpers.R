@@ -77,21 +77,37 @@ plot_over_time <- function(df, day = NULL){
   if (!is.null(day)){
     df <- df %>% filter((lubridate::wday(Date, label = TRUE) == day))
   }
-  p <- df %>%  
+  df <- df %>%  
     mutate(Day =  factor(lubridate::wday(Date, label = TRUE),
                          ordered = TRUE,
-                         levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")),
-           tooltip = glue::glue("Date: {Date} ({Day})<br>Solve Time: {Duration}<br>"),
-           onclick = glue::glue("window.open(\"https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}\")")) %>%
-    ggplot(aes(x = Date, y = Duration, color = Day)) + 
-    geom_smooth(se = FALSE) +
+                         levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")))
+  df_fastest <- df %>% group_by(Day) %>% summarize(fastest_duration = min(Duration))
+  df <-  df %>% 
+      inner_join(df_fastest, by = "Day") %>% 
+      mutate(
+           fastest = if_else(Duration == fastest_duration, glue::glue("Fastest {Day} Solve Time!"),""),
+           tooltip = glue::glue("Date: {Date} ({Day})<br>Solve Time: {Duration}<br>{fastest}"),
+           onclick = glue::glue("window.open(\"https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}\")"),
+           Symbol = factor("Single Puzzle", levels = c("Single Puzzle","Trend","Fastest Solve")))
+  
+
+  p <- ggplot(df, aes(x = Date, y = Duration, color = Day, shape = Symbol, lty = Symbol)) + 
+    geom_point(data = filter(df, Duration == fastest_duration), shape = 1, size = 4) +
+    geom_smooth(se = FALSE) + 
+    scale_y_time(labels = function(x){strftime(x,'%H:%M')}) +
     geom_point_interactive(aes(tooltip = tooltip, onclick = onclick)) + 
     scale_color_brewer(palette = "Dark2", drop = FALSE) +
     theme_bw() +
-    ylab("Solve Time") 
+    ylab("Solve Time (Hours:Minutes)") + 
+    scale_shape_discrete(drop = FALSE, name = '') +
+    scale_linetype_discrete(drop = FALSE, name = '') +
+    guides(color = guide_legend(override.aes = list(shape = 15, linetype = 'blank')),
+           shape = guide_legend(override.aes = list(shape = c(16, NA, 1), 
+                                                    linetype = c('blank','solid','blank'),
+                                                    size = c(2,1,4),
+                                                    color = 'black')))
   if (!is.null(day)) {
-    p <- p + ggtitle(glue::glue("Solve Rates Over Time ({day})")) +
-      guides(color = NULL)
+    p <- p + ggtitle(glue::glue("Solve Rates Over Time ({day})")) 
   } else{
     p <- p + ggtitle("Solve Rates Over Time")
   }
@@ -106,7 +122,7 @@ completion_calendar <- function(df){
   df <- df %>% 
     mutate(opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), 
            grp = cumsum(opens),
-           col = grp %% n_col,
+           col = grp %% n_col + 1,
            Day =  lubridate::wday(Date, label = TRUE),
            tooltip = glue::glue("Date: {Date} ({Day}) <br/> Solve Time: {Duration}<br>"),
            links = glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}")) 
