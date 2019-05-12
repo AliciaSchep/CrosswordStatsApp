@@ -94,7 +94,7 @@ plot_over_time <- function(df, day = NULL){
   p <- ggplot(df, aes(x = Date, y = Duration, color = Day, shape = Symbol, lty = Symbol)) + 
     geom_point(data = filter(df, Duration == fastest_duration), shape = 1, size = 4) +
     geom_smooth(se = FALSE) + 
-    scale_y_time(labels = function(x){strftime(x,'%H:%M')}) +
+    scale_y_time(labels = function(x){strftime(x,'%H:%M')}, limits = c(0,NA)) +
     geom_point_interactive(aes(tooltip = tooltip, onclick = onclick)) + 
     scale_color_brewer(palette = "Dark2", drop = FALSE) +
     theme_bw() +
@@ -131,7 +131,7 @@ completion_calendar <- function(df){
     colors = RColorBrewer::brewer.pal(n_col, "Dark2"),
     min = 1,
     max = n_col,
-    endDate = lubridate::today()
+    endDate = max(c(lubridate::today(),max(df$Date))) + lubridate::days(1)
   )
   
   d3_file <- "calendar_plot.js"
