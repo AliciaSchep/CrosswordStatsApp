@@ -107,9 +107,9 @@ plot_over_time <- function(df, day = NULL){
                                                     size = c(2,1,4),
                                                     color = 'black')))
   if (!is.null(day)) {
-    p <- p + ggtitle(glue::glue("Solve Rates Over Time ({day})")) 
+    p <- p + ggtitle(glue::glue("Solve Time Trend ({day})")) 
   } else{
-    p <- p + ggtitle("Solve Rates Over Time")
+    p <- p + ggtitle("Solve Time Trends by Day of Week")
   }
   girafe(ggobj = p)
 }
