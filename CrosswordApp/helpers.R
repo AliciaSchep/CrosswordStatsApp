@@ -69,6 +69,53 @@ dow_summary_table <- function(df){
   d
 }
 
+plot_streak_times <- function(df) {
+  streak_data <- df %>% 
+    mutate(
+      Day = lubridate::wday(Date, label = TRUE),
+      opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), grp = cumsum(opens)) %>%  
+    group_by(grp) %>% 
+    mutate(relative_day = row_number(), 
+           total_duration = as.hms(cumsum(as.numeric(Duration)))) %>% 
+    ungroup() %>%
+    mutate(tooltip =  glue::glue("Date: {Date} ({Day})<br>Solve Time: {Duration}<br>Streak Day: {relative_day}<br>Total Streak Duration: {total_duration}"))
+  
+  p <- ggplot(streak_data, aes(x = relative_day, y = total_duration, group = grp, color = grp)) + 
+    geom_line() + 
+    xlab("Days since start of streak") + 
+    ylab("Total solving time during streak") + 
+    theme_bw(14) + 
+    scale_color_gradientn(colors = RColorBrewer::brewer.pal(9,"YlOrRd")[3:9], breaks = function(x) x, labels = c('Long ago', 'Recent')) + 
+    geom_point_interactive(aes(tooltip = tooltip)) + 
+    theme(legend.position = c(0.8,0.1), legend.direction = "horizontal", legend.title = element_blank())
+  
+  girafe(ggobj = p)
+}
+
+plot_record_over_time <- function(df) {
+  records <-  df %>% 
+    mutate(Day =  factor(lubridate::wday(Date, label = TRUE),
+                        ordered = TRUE,
+                        levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"))) %>%
+    group_by(Day) %>% 
+    mutate(min = as.hms(cummin(as.numeric(Duration)), units = "secs")) 
+  
+  only_new <- records %>% 
+    filter(min != lag(min) | is.na(lag(min))) %>%
+    ungroup() %>%
+    mutate(tooltip = glue::glue("Date: {Date} ({Day})<br>Record Time: {min}"))
+  
+  p <- records %>% ungroup() %>%
+    ggplot(aes(x = Date, y = min, color = Day)) + 
+    geom_step() +
+    geom_point_interactive(data = only_new, aes(tooltip = tooltip)) +
+    theme_bw(14) + 
+    scale_color_brewer(palette = "Dark2", drop = FALSE) + 
+    ylab('Current Record Time')
+  
+  girafe(ggobj = p)
+}
+
 
 plot_over_time <- function(df, day = NULL){
   # Plot duration over time
@@ -97,7 +144,7 @@ plot_over_time <- function(df, day = NULL){
     scale_y_time(labels = function(x){strftime(x,'%H:%M')}, limits = c(0,NA)) +
     geom_point_interactive(aes(tooltip = tooltip, onclick = onclick)) + 
     scale_color_brewer(palette = "Dark2", drop = FALSE) +
-    theme_bw() +
+    theme_bw(14) +
     ylab("Solve Time (Hours:Minutes)") + 
     scale_shape_discrete(drop = FALSE, name = '') +
     scale_linetype_discrete(drop = FALSE, name = '') +

@@ -4,6 +4,7 @@ library(DT)
 library(r2d3)
 library(shinycssloaders)
 library(sparkline)
+library(hms)
 source("helpers.R")
 
 DATA_URL <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eezEaq1jXWy4Sr8QDsOR9ZtGQQrXQhPN6cpgEHbWcDB20D_p6O-HD3Pefscub9L/pub?gid=0&single=true&output=csv"
@@ -19,6 +20,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Summary", tabName = "Summary", icon = icon("dashboard")),
       menuItem("Trends", tabName = "Trends", icon = icon("chart-line")),
+      menuItem("Records & Streaks", tabName = "Records_Streaks", icon = icon("trophy")),
       menuItem("About", tabName = "About", icon = icon("question")),
       menuItem("Source", href = "https://github.com/AliciaSchep/CrosswordStatsApp", icon = icon("code")),
       refresh_menu
@@ -58,6 +60,12 @@ ui <- dashboardPage(
                ),
             box(p("Hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),width = 12)
           )),
+      tabItem("Records_Streaks",
+          fluidRow(
+            box(ggiraphOutput('recordPlot', height = "600px"),title = "Records over Time"),
+            box(ggiraphOutput('streakPlot', height = "600px"), title = "Streak lengths & duration")
+          )
+      ),
       tabItem("About",
           fluidRow(
             box(
@@ -146,6 +154,14 @@ server <- function(input, output, session) {
   
   output$dailyStats <- renderDT({
     dow_summary_table(c_data())
+  })
+  
+  output$recordPlot <- renderggiraph({
+    plot_record_over_time(c_data())
+  })
+  
+  output$streakPlot <- renderggiraph({
+    plot_streak_times(c_data())
   })
   
   output$trendPlot <- renderggiraph({
