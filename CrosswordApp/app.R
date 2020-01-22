@@ -5,6 +5,8 @@ library(r2d3)
 library(shinycssloaders)
 library(sparkline)
 library(hms)
+library(vlbuildr)
+library(vegawidget)
 source("helpers.R")
 
 DATA_URL <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eezEaq1jXWy4Sr8QDsOR9ZtGQQrXQhPN6cpgEHbWcDB20D_p6O-HD3Pefscub9L/pub?gid=0&single=true&output=csv"
@@ -39,7 +41,7 @@ ui <- dashboardPage(
               title = "Summary by Day-of-Week")
           ),
           fluidRow(
-            box(d3Output("completionCalendar", height = "140px"), 
+            box(vegawidgetOutput("completionCalendar", height = "140px"), 
                 p("Hover over square to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
               width = 12,
               title = "Puzzle Completions in Past Year (Colored by Streak)")
@@ -48,14 +50,14 @@ ui <- dashboardPage(
       tabItem("Trends",
            fluidRow(
              tabBox(
-               tabPanel('All',ggiraphOutput('trendPlot', height = "600px")),
-               tabPanel('Monday',ggiraphOutput('trendPlotMon', height = "600px")),
-               tabPanel('Tuesday',ggiraphOutput('trendPlotTue', height = "600px")),
-               tabPanel('Wednesday',ggiraphOutput('trendPlotWed', height = "600px")),
-               tabPanel('Thursday',ggiraphOutput('trendPlotThu', height = "600px")),
-               tabPanel('Friday',ggiraphOutput('trendPlotFri', height = "600px")),
-               tabPanel('Saturday',ggiraphOutput('trendPlotSat', height = "600px")),
-               tabPanel('Sunday',ggiraphOutput('trendPlotSun', height = "600px")),
+               tabPanel('All',ggiraphOutput('trendPlot', width = "100%")),
+               tabPanel('Monday',ggiraphOutput('trendPlotMon', height = "800px")),
+               tabPanel('Tuesday',ggiraphOutput('trendPlotTue', height = "800px")),
+               tabPanel('Wednesday',ggiraphOutput('trendPlotWed', height = "800px")),
+               tabPanel('Thursday',ggiraphOutput('trendPlotThu', height = "800px")),
+               tabPanel('Friday',ggiraphOutput('trendPlotFri', height = "800px")),
+               tabPanel('Saturday',ggiraphOutput('trendPlotSat', height = "800px")),
+               tabPanel('Sunday',ggiraphOutput('trendPlotSun', height = "800px")),
                width = 12
                ),
             box(p("Hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),width = 12)
@@ -197,9 +199,10 @@ server <- function(input, output, session) {
   })
   
   
-  output$completionCalendar <- renderD3({
-    completion_calendar(c_data())
-  })
+  output$completionCalendar <- renderVegawidget(
+    quote(completion_calendar(c_data())), 
+    quoted = TRUE
+  )
 
 }
 

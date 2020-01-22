@@ -220,7 +220,7 @@ completion_calendar <- function(df){
     vl_filter("datum.Day == 'Mon' & datum.new_month") %>% 
     vl_mark_text(dy = -20)
     
-  vl_layer(p1,p2) %>% 
+  p3 <- vl_layer(p1,p2) %>% 
     vl_encode_x("week_index:O", title = NA) %>%
     vl_encode_y("Day:O", title = NA) %>%
     vl_add_data(chart_data) %>%
@@ -230,5 +230,6 @@ completion_calendar <- function(df){
     vl_axis_y(ticks = FALSE, domain = FALSE) %>%
     vl_config_view(stroke = "transparent")
 
+  vegawidget(p3)
 }
   
