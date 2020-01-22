@@ -162,31 +162,6 @@ plot_over_time <- function(df, day = NULL){
 }
 
 
-completion_calendar <- function(df){
-  # Make calendar plot showing days of completion, colored by streak
-  # df input should be crossword data with Date and Duration columns
-  n_col <- 4
-  df <- df %>% 
-    mutate(opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), 
-           grp = cumsum(opens),
-           col = grp %% n_col + 1,
-           Day =  lubridate::wday(Date, label = TRUE),
-           tooltip = glue::glue("Date: {Date} ({Day}) <br/> Solve Time: {Duration}<br>"),
-           links = glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}")) 
-  
-  opt_list <- list(
-    colors = RColorBrewer::brewer.pal(n_col, "Dark2"),
-    min = 1,
-    max = n_col,
-    endDate = max(c(lubridate::today(),max(df$Date))) + lubridate::days(1)
-  )
-  
-  d3_file <- "calendar_plot.js"
-  
-  r2d3::r2d3(df, options = opt_list, script = d3_file, d3_version = 4, container = "div")
-  
-}
-
 get_weeks_ago <- function(x) {
   t1 <- lubridate::today()
   t2 <- t1 + lubridate::days(8 - lubridate::wday(t1, week_start = 1))
@@ -197,28 +172,27 @@ get_start_of_week_month <- function(x) {
   lubridate::month(x - lubridate::days(lubridate::wday(x, week_start = 1) - 1), label = TRUE)
 }
 
-completion_calendar2 <- function(df){
+completion_calendar <- function(df){
   # Make calendar plot showing days of completion, colored by streak
   # df input should be crossword data with Date and Duration columns
   n_col <- 4
   df <- df %>% 
     mutate(opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), 
            grp = cumsum(opens),
-           col = grp %% n_col + 1,
-           Day =  lubridate::wday(Date, label = TRUE),
-           tooltip = glue::glue("Date: {Date} ({Day}) <br/> Solve Time: {Duration}<br>"),
-           links = glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}")) 
+           col = grp %% n_col + 1) 
   
-  year_dates <- data_frame(
+  year_dates <- tibble(
     Date = seq(lubridate::today() - lubridate::weeks(52) + lubridate::days(8 - lubridate::wday(lubridate::today(), week_start = 1)), 
                lubridate::today(),
-               by = '1 day'),
-    Day =  lubridate::wday(Date, label = TRUE)
+               by = '1 day')
   )
   
   chart_data <- year_dates %>% 
-    left_join(df, by = c('Date','Day')) %>% 
-    mutate(week = lubridate::isoweek(Date),
+    left_join(df, by = 'Date') %>% 
+    mutate(
+      links = glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}"),
+      Day =  lubridate::wday(Date, label = TRUE),
+      week = lubridate::isoweek(Date),
             day_int = lubridate::wday(Date, week_start = 1),
            year = lubridate::year(Date),
            weeks_ago = get_weeks_ago(Date),
@@ -246,7 +220,7 @@ completion_calendar2 <- function(df){
     vl_filter("datum.Day == 'Mon' & datum.new_month") %>% 
     vl_mark_text(dy = -20)
     
-  p3 <- vl_layer(p1,p2) %>% 
+  vl_layer(p1,p2) %>% 
     vl_encode_x("week_index:O", title = NA) %>%
     vl_encode_y("Day:O", title = NA) %>%
     vl_add_data(chart_data) %>%
@@ -255,37 +229,6 @@ completion_calendar2 <- function(df){
     vl_axis_x(ticks = FALSE, labels = FALSE, domain = FALSE) %>% 
     vl_axis_y(ticks = FALSE, domain = FALSE) %>%
     vl_config_view(stroke = "transparent")
-  p3
-    
-  chart_data %>% 
-    vl_chart() %>%
-    vl_encode_x("week_month:O", sort = "descending", title = NA) %>%
-    vl_encode_y("Day:O", sort = list(field = "day_int"), title = NA) %>% 
-    vl_encode_color("col:N", legend = NA) %>%
-    vl_scale_color(scheme = "Dark2") %>%
-    vl_mark_rect() %>%
-    vl_encode_href("links:N") %>%
-    #vl_axis_x(ticks = FALSE, labelExpr =  "datum.value[3:5]") %>% 
-    vl_axis_y(ticks = FALSE) %>% 
-    #vl_encode_row("year_index:N", title = NA) %>% 
-    vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "N"), vl$Tooltip(field = "Duration", type = "N")))
 
-  df %>% select(Date, Day) %>% 
-    mutate(week = lubridate::isoweek(Date),
-           day_int = lubridate::wday(Date, week_start = 1),
-           year = lubridate::year(Date),
-           weeks_ago = get_weeks_ago(Date),
-           week_index = weeks_ago %% 52,
-           week_month = paste0(format(week_index,width = 2),get_start_of_week_month(Date)),
-           year_index = weeks_ago %/% 52,
-           month = get_start_of_week_month(Date),
-           prev_month = lag(month)) %>%
-    filter(year_index == 0) %>% 
-    vl_chart() %>%
-    vl_encode_x("week_month:O", sort = "descending", title = NA) %>%
-    vl_encode_y("Day:O", sort = list(field = "day_int"), title = NA) %>% 
-    vl_encode_text("month:N") %>%
-    vl_filter("datum.Day == 'Mon' && datum.") %>% 
-    vl_mark_text()
 }
   
