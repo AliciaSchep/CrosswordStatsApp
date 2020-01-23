@@ -1,7 +1,11 @@
 library(dplyr)
 library(ggplot2)
-library(ggiraph)
-library(DT)
+#library(ggiraph)
+#library(DT)
+
+to_time_format <- function(x) {
+  as.character(hms::hms(as.numeric(x)))
+}
 
 get_streaks <- function(df){
   # Take in dataframe of stats (with columns Date and Duration)
@@ -161,6 +165,52 @@ plot_over_time <- function(df, day = NULL){
   girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE, width = .8)))
 }
 
+plot_over_time2 <- function(df, day = NULL){
+  # Plot duration over time
+  # df input should be crossword data with Date and Duration columns
+  # If day argument is provided, only plot for single day
+  if (!is.null(day)){
+    df <- df %>% filter((lubridate::wday(Date, label = TRUE) == day))
+  }
+  df <- df %>%  
+    mutate(Day =  factor(lubridate::wday(Date, label = TRUE),
+                         ordered = TRUE,
+                         levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")))
+  df_fastest <- df %>% group_by(Day) %>% summarize(fastest_duration = min(Duration))
+  df <-  df %>% 
+    inner_join(df_fastest, by = "Day") %>% 
+    mutate(
+      fastest = if_else(Duration == fastest_duration, glue::glue("Fastest {Day} Solve Time!"),""),
+      tooltip = glue::glue("Date: {Date} ({Day})<br>Solve Time: {Duration}<br>{fastest}"),
+      onclick = glue::glue("window.open(\"https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}\")"),
+      Symbol = factor("Single Puzzle", levels = c("Single Puzzle","Trend","Fastest Solve")),
+      duration_time = paste0("2020"," ",to_time_format(Duration)),
+      fastest_duration = to_time_format(Duration)) %>%
+    select(duration_time, fastest_duration, fastest, Symbol, Date, Day)
+  
+  
+   #%>% 
+    
+  l1 <- vl_chart() %>% 
+    vl_window(frame = list(-5,0), 
+              window = list(list(field = "Duration", op = "mean", as = "rolling_mean")), 
+              sort = list(list("field"= "Date", "order"= "ascending"))) %>%
+    vl_encode_x("Date:T") %>%
+    vl_encode_y("rolling_mean:Q") %>%
+    vl_mark_line(interpolate = "monotone") %>% 
+    vl_axis_y(labelExpr = "minutes(datetime(0,0,0,0,0,datum.value)) ")
+  
+  l2 <- vl_chart() %>%
+    vl_encode_x("Date:T") %>%
+    vl_encode_y("Duration:Q") %>%
+    vl_mark_point() %>% 
+    vl_axis_y(labelExpr = "minutes(datetime(0,0,0,0,0,datum.value)) ")
+  
+  vl_layer(l1, l2) %>% vl_add_data(df2 %>% filter((lubridate::wday(Date, label = TRUE) == "Mon")))
+    
+    #vl_encode_y("duration_time:T", timeUnit = "hoursminutesseconds") %>%
+    vl_mark_point()
+}
 
 get_weeks_ago <- function(x) {
   t1 <- lubridate::today()
