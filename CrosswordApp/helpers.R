@@ -190,11 +190,26 @@ plot_over_time2 <- function(df, day = NULL){
   
   
    #%>% 
+  
+  df_with_day <- df %>%  
+    mutate(Day =  lubridate::wday(Date, label = TRUE))
+  df_fastest <- df_with_day %>% 
+    group_by(Day) %>% 
+    summarize(fastest_duration = min(Duration))
+  chart_data <- df_with_day %>% inner_join(df_fastest, by = "Day") %>% 
+    mutate(
+      fastest = Duration == fastest_duration,
+      `Solve Time` = to_time_format(Duration),
+      duration_seconds = as.numeric(Duration)
+      ) %>% 
+    select(Date, duration_seconds, fastest, `Solve Time`, Day)
+  
     
   l1 <- vl_chart() %>% 
-    vl_window(frame = list(-5,0), 
-              window = list(list(field = "Duration", op = "mean", as = "rolling_mean")), 
-              sort = list(list("field"= "Date", "order"= "ascending"))) %>%
+    vl_window(frame = list(-5,5), 
+              window = list(list(field = "duration_seconds", op = "mean", as = "rolling_mean")), 
+              sort = list(list("field"= "Date", "order"= "ascending")),
+              groupby = list("Day")) %>%
     vl_encode_x("Date:T") %>%
     vl_encode_y("rolling_mean:Q") %>%
     vl_mark_line(interpolate = "monotone") %>% 
@@ -202,14 +217,29 @@ plot_over_time2 <- function(df, day = NULL){
   
   l2 <- vl_chart() %>%
     vl_encode_x("Date:T") %>%
-    vl_encode_y("Duration:Q") %>%
-    vl_mark_point() %>% 
-    vl_axis_y(labelExpr = "minutes(datetime(0,0,0,0,0,datum.value)) ")
+    vl_encode_y("duration_seconds:Q") %>%
+    vl_encode_shape(value = "circle") %>%
+    vl_encode_color(value = "grey") %>%
+    vl_encode_opacity(value = 0.5) %>%
+    vl_condition_opacity(test = "datum.fastest",
+                       value = 1) %>%
+    vl_condition_color(test = "datum.fastest",
+                       value = "gold") %>%
+    vl_condition_shape(test = "datum.fastest",
+                       value = "M0,.5L.6,.8L.5,.1L1,-.3L.3,-.4L0,-1L-.3,-.4L-1,-.3L-.5,.1L-.6,.8L0,.5Z") %>%
+    vl_mark_point() %>%
+    vl_axis_y(labelExpr = "datum.value / 60", title = "Solve Time (minutes)") %>%
+    vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "temporal"), vl$Tooltip(field = "Solve Time", type = "nominal"))) 
   
-  vl_layer(l1, l2) %>% vl_add_data(df2 %>% filter((lubridate::wday(Date, label = TRUE) == "Mon")))
+  vl_layer(l1, l2) %>% 
+    vl_add_data(chart_data) %>% 
+    vl_facet_wrap(field = "Day", type = "nominal", columns = 4, 
+                  sort = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), title = NA) %>%
+    vl_resolve_axis_y(how = "independent") %>% 
+    vl_resolve_scale_y(how = "independent") %>% 
+    vl_resolve_axis_x(how = "independent")
     
-    #vl_encode_y("duration_time:T", timeUnit = "hoursminutesseconds") %>%
-    vl_mark_point()
+
 }
 
 get_weeks_ago <- function(x) {
