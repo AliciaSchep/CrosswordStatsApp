@@ -1,7 +1,7 @@
 library(dplyr)
 library(ggplot2)
 #library(ggiraph)
-#library(DT)
+library(DT)
 
 to_time_format <- function(x) {
   as.character(hms::hms(as.numeric(x)))
@@ -165,31 +165,9 @@ plot_over_time <- function(df, day = NULL){
   girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE, width = .8)))
 }
 
-plot_over_time2 <- function(df, day = NULL){
+plot_over_time2 <- function(df){
   # Plot duration over time
   # df input should be crossword data with Date and Duration columns
-  # If day argument is provided, only plot for single day
-  if (!is.null(day)){
-    df <- df %>% filter((lubridate::wday(Date, label = TRUE) == day))
-  }
-  df <- df %>%  
-    mutate(Day =  factor(lubridate::wday(Date, label = TRUE),
-                         ordered = TRUE,
-                         levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")))
-  df_fastest <- df %>% group_by(Day) %>% summarize(fastest_duration = min(Duration))
-  df <-  df %>% 
-    inner_join(df_fastest, by = "Day") %>% 
-    mutate(
-      fastest = if_else(Duration == fastest_duration, glue::glue("Fastest {Day} Solve Time!"),""),
-      tooltip = glue::glue("Date: {Date} ({Day})<br>Solve Time: {Duration}<br>{fastest}"),
-      onclick = glue::glue("window.open(\"https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}\")"),
-      Symbol = factor("Single Puzzle", levels = c("Single Puzzle","Trend","Fastest Solve")),
-      duration_time = paste0("2020"," ",to_time_format(Duration)),
-      fastest_duration = to_time_format(Duration)) %>%
-    select(duration_time, fastest_duration, fastest, Symbol, Date, Day)
-  
-  
-   #%>% 
   
   df_with_day <- df %>%  
     mutate(Day =  lubridate::wday(Date, label = TRUE))
@@ -202,7 +180,8 @@ plot_over_time2 <- function(df, day = NULL){
       `Solve Time` = to_time_format(Duration),
       duration_seconds = as.numeric(Duration)
       ) %>% 
-    select(Date, duration_seconds, fastest, `Solve Time`, Day)
+    select(Date, duration_seconds, fastest, `Solve Time`, Day) %>%
+    arrange(fastest)
   
     
   l1 <- vl_chart() %>% 
@@ -212,34 +191,32 @@ plot_over_time2 <- function(df, day = NULL){
               groupby = list("Day")) %>%
     vl_encode_x("Date:T") %>%
     vl_encode_y("rolling_mean:Q") %>%
-    vl_mark_line(interpolate = "monotone") %>% 
-    vl_axis_y(labelExpr = "minutes(datetime(0,0,0,0,0,datum.value)) ")
+    vl_mark_line(interpolate = "monotone") 
   
   l2 <- vl_chart() %>%
     vl_encode_x("Date:T") %>%
     vl_encode_y("duration_seconds:Q") %>%
     vl_encode_shape(value = "circle") %>%
     vl_encode_color(value = "grey") %>%
-    vl_encode_opacity(value = 0.5) %>%
-    vl_condition_opacity(test = "datum.fastest",
-                       value = 1) %>%
+    vl_encode_size(value = 25) %>%
+    vl_condition_size(test = "datum.fastest",
+                       value = 100) %>%
     vl_condition_color(test = "datum.fastest",
-                       value = "gold") %>%
+                       value = "red") %>%
     vl_condition_shape(test = "datum.fastest",
                        value = "M0,.5L.6,.8L.5,.1L1,-.3L.3,-.4L0,-1L-.3,-.4L-1,-.3L-.5,.1L-.6,.8L0,.5Z") %>%
-    vl_mark_point() %>%
-    vl_axis_y(labelExpr = "datum.value / 60", title = "Solve Time (minutes)") %>%
+    vl_mark_point(filled = TRUE) %>%
+    vl_axis_y(labelExpr = "round(datum.value / 60)", title = "Solve Time (minutes)") %>%
     vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "temporal"), vl$Tooltip(field = "Solve Time", type = "nominal"))) 
   
   vl_layer(l1, l2) %>% 
     vl_add_data(chart_data) %>% 
-    vl_facet_wrap(field = "Day", type = "nominal", columns = 4, 
+    vl_facet_wrap(field = "Day", type = "nominal", columns = 3, 
                   sort = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), title = NA) %>%
     vl_resolve_axis_y(how = "independent") %>% 
     vl_resolve_scale_y(how = "independent") %>% 
-    vl_resolve_axis_x(how = "independent")
-    
-
+    vl_resolve_axis_x(how = "independent") %>%
+    vegawidget()
 }
 
 get_weeks_ago <- function(x) {
@@ -308,7 +285,8 @@ completion_calendar <- function(df){
     vl_scale_x(domain = 51:0) %>%
     vl_axis_x(ticks = FALSE, labels = FALSE, domain = FALSE) %>% 
     vl_axis_y(ticks = FALSE, domain = FALSE) %>%
-    vl_config_view(stroke = "transparent")
+    vl_config_view(stroke = "transparent") %>%
+    vl_add_properties(width = "500")
 
   vegawidget(p3)
 }
