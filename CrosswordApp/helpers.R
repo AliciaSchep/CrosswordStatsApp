@@ -94,31 +94,6 @@ plot_streak_times <- function(df) {
   girafe(ggobj = p)
 }
 
-plot_record_over_time <- function(df) {
-  records <-  df %>% 
-    mutate(Day =  factor(lubridate::wday(Date, label = TRUE),
-                        ordered = TRUE,
-                        levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"))) %>%
-    group_by(Day) %>% 
-    mutate(min = as.hms(cummin(as.numeric(Duration)), units = "secs")) 
-  
-  only_new <- records %>% 
-    filter(min != lag(min) | is.na(lag(min))) %>%
-    ungroup() %>%
-    mutate(tooltip = glue::glue("Date: {Date} ({Day})<br>Record Time: {min}"))
-  
-  p <- records %>% ungroup() %>%
-    ggplot(aes(x = Date, y = min, color = Day)) + 
-    geom_step() +
-    geom_point_interactive(data = only_new, aes(tooltip = tooltip)) +
-    theme_bw(14) + 
-    scale_color_brewer(palette = "Dark2", drop = FALSE) + 
-    ylab('Current Record Time')
-  
-  girafe(ggobj = p)
-}
-
-
 plot_over_time <- function(df, width){
   # Plot duration over time
   # df input should be crossword data with Date and Duration columns
@@ -133,25 +108,61 @@ plot_over_time <- function(df, width){
       fastest = Duration == fastest_duration,
       `Solve Time` = to_time_format(Duration),
       duration_seconds = as.numeric(Duration),
-      links = glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}"),
+      links = as.character(glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}")),
       ) %>% 
     select(Date, duration_seconds, fastest, `Solve Time`, Day, links) %>%
-    arrange(fastest)
+    arrange(fastest) %>%
+    mutate(valid = TRUE) %>% 
+    group_by(Day) %>%
+    mutate(rank = min_rank(Date)) %>%
+    ungroup()
+  
+  ## a hack to get the area to line up
+  min_date <- min(chart_data$Date)
+  min_df <- chart_data %>% 
+    group_by(Day) %>% 
+    top_n(1, desc(Date)) %>% 
+    ungroup() %>%
+    mutate(Date = min_date,
+           valid = FALSE)
+  
+  max_date <- max(chart_data$Date)
+  max_df <- chart_data %>% 
+    group_by(Day) %>% 
+    top_n(1, Date) %>% 
+    ungroup() %>%
+    mutate(Date = max_date,
+           valid = FALSE)
+  
+  chart_data <- bind_rows(chart_data, min_df, max_df)
   
   # Use with to get number of columns
   view_width = 250
   ncol <- max(1, floor( width / view_width))
   
   l1 <- vl_chart() %>% 
-    vl_window(frame = list(-5,5), 
+    vl_filter("datum.valid") %>%
+    vl_window(frame = list(-9,0), 
               window = list(vl$Window(field = "duration_seconds", op = "mean", as = "rolling_mean")), 
               sort = list(list("field"= "Date", "order"= "ascending")),
               groupby = list("Day")) %>%
+    # Putting this filter after the window makes sure it only affects where plotting is happening not
+    # the averaging... this is making sure that line is showing up after a few points
+    vl_filter("datum.rank > 2") %>% 
     vl_encode_x("Date:T") %>%
     vl_encode_y("rolling_mean:Q") %>%
-    vl_mark_line(interpolate = "monotone") 
+    vl_mark_line(interpolate = "monotone", tooltip = "Moving average (Last 10 points)") 
   
-  l2 <- vl_chart() %>%
+  l2 <- vl_chart() %>% 
+    vl_window(frame = list(NA,0), 
+              window = list(vl$Window(field = "duration_seconds", op = "min", as = "rolling_min")), 
+              sort = list(list("field"= "Date", "order"= "ascending")),
+              groupby = list("Day")) %>%
+    vl_encode_x("Date:T") %>%
+    vl_encode_y("rolling_min:Q") %>%
+    vl_mark_area(interpolate = "step-after", color = 'red', opacity = 0.2, clip = FALSE, tooltip = "Record time")
+  
+  l3 <- vl_chart() %>%
     vl_encode_x("Date:T") %>%
     vl_encode_y("duration_seconds:Q") %>%
     vl_encode_shape(value = "circle") %>%
@@ -165,13 +176,16 @@ plot_over_time <- function(df, width){
                        value = "M0,.5L.6,.8L.5,.1L1,-.3L.3,-.4L0,-1L-.3,-.4L-1,-.3L-.5,.1L-.6,.8L0,.5Z") %>%
     vl_encode_href("links:N") %>%
     vl_mark_point(filled = TRUE) %>%
+    vl_axis_x(title = NA) %>%
     vl_axis_y(labelExpr = "round(datum.value / 60)", title = "Solve Time (minutes)") %>%
-    vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "temporal"), vl$Tooltip(field = "Solve Time", type = "nominal"))) 
+    vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "temporal"), vl$Tooltip(field = "Solve Time", type = "nominal")))  %>%
+    vl_filter("datum.valid")
   
-  vl_layer(l1, l2) %>% 
+  vl_layer(l1, l2, l3) %>%
     vl_add_data(chart_data) %>% 
     vl_facet_wrap(field = "Day", type = "nominal", columns = ncol, 
-                  sort = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), title = NA) %>%
+                  sort = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), title = NA,
+                  header = list(labelFontStyle = "bold", labelFontSize = 16, labelPadding = 2)) %>%
     vl_resolve_axis_y(how = "independent") %>% 
     vl_resolve_scale_y(how = "independent") %>% 
     vl_resolve_axis_x(how = "independent") %>%
