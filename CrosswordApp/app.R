@@ -14,10 +14,26 @@ DATA_URL <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eez
 refresh_menu <- menuItem("Refresh", href = "#", icon = icon("refresh"), newtab = FALSE)
 refresh_menu$children[[1]]$attribs['onclick'] <- "Shiny.onInputChange('refreshLink','refresh'); return false"
 
+# Script for getting dimensions... hacky way of handling resize for now
+resize <-'
+var dimension = [0, 0];
+$(document).on("shiny:connected", function(e) {
+  dimension[0] = window.innerWidth;
+  dimension[1] = window.innerHeight;
+  Shiny.onInputChange("dimension", dimension);
+});
+$(window).resize(function(e) {
+  dimension[0] = window.innerWidth;
+  dimension[1] = window.innerHeight;
+  Shiny.onInputChange("dimension", dimension);
+});'
+
+
 
 ui <- dashboardPage(
   dashboardHeader(title = "Crossword Stats"),
   dashboardSidebar(
+    tags$head(tags$script(resize)),
     sidebarMenu(
       menuItem("Summary", tabName = "Summary", icon = icon("dashboard")),
       menuItem("Trends", tabName = "Trends", icon = icon("chart-line")),
@@ -40,7 +56,7 @@ ui <- dashboardPage(
               title = "Summary by Day-of-Week")
           ),
           fluidRow(
-            box(vegawidgetOutput("completionCalendar", height = "140px"), 
+            box(vegawidgetOutput("completionCalendar"), 
                 p("Hover over square to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
               width = 12,
               title = "Puzzle Completions in Past Year (Colored by Streak)")
@@ -121,7 +137,6 @@ server <- function(input, output, session) {
       current_streak <- tail(get_streaks(c_data()),1)$streak_len
     }
     
-    
     valueBox(
       value = current_streak,
       subtitle = "Current Streak Length",
@@ -131,11 +146,7 @@ server <- function(input, output, session) {
   })
   
   output$longestStreak <- renderValueBox({
-    
-    
     max_streak <- max(get_streaks(c_data())$streak_len)
-    
-    
     valueBox(
       value = max_streak,
       subtitle = "Max Streak Length",
@@ -157,13 +168,13 @@ server <- function(input, output, session) {
   # })
   
   output$trendPlot <- renderVegawidget(
-    quote(plot_over_time2(c_data())),
+    quote(plot_over_time(c_data(), input$dimension[1] * 0.6)),
     quote = TRUE
     )
   
   
   output$completionCalendar <- renderVegawidget(
-    quote(completion_calendar(c_data())), 
+    quote(completion_calendar(c_data(), as.character(floor(input$dimension[1] * 0.65)))), 
     quoted = TRUE
   )
 

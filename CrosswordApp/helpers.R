@@ -165,7 +165,7 @@ plot_over_time <- function(df, day = NULL){
   girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE, width = .8)))
 }
 
-plot_over_time2 <- function(df){
+plot_over_time <- function(df, width){
   # Plot duration over time
   # df input should be crossword data with Date and Duration columns
   
@@ -178,15 +178,18 @@ plot_over_time2 <- function(df){
     mutate(
       fastest = Duration == fastest_duration,
       `Solve Time` = to_time_format(Duration),
-      duration_seconds = as.numeric(Duration)
+      duration_seconds = as.numeric(Duration),
+      links = glue::glue("https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}"),
       ) %>% 
-    select(Date, duration_seconds, fastest, `Solve Time`, Day) %>%
+    select(Date, duration_seconds, fastest, `Solve Time`, Day, links) %>%
     arrange(fastest)
   
-    
+  # Use with to get number of columns
+  ncol <- max(1, floor( width / 200))
+  
   l1 <- vl_chart() %>% 
     vl_window(frame = list(-5,5), 
-              window = list(list(field = "duration_seconds", op = "mean", as = "rolling_mean")), 
+              window = list(vl$Window(field = "duration_seconds", op = "mean", as = "rolling_mean")), 
               sort = list(list("field"= "Date", "order"= "ascending")),
               groupby = list("Day")) %>%
     vl_encode_x("Date:T") %>%
@@ -205,17 +208,19 @@ plot_over_time2 <- function(df){
                        value = "red") %>%
     vl_condition_shape(test = "datum.fastest",
                        value = "M0,.5L.6,.8L.5,.1L1,-.3L.3,-.4L0,-1L-.3,-.4L-1,-.3L-.5,.1L-.6,.8L0,.5Z") %>%
+    vl_encode_href("links:N") %>%
     vl_mark_point(filled = TRUE) %>%
     vl_axis_y(labelExpr = "round(datum.value / 60)", title = "Solve Time (minutes)") %>%
     vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "temporal"), vl$Tooltip(field = "Solve Time", type = "nominal"))) 
   
   vl_layer(l1, l2) %>% 
     vl_add_data(chart_data) %>% 
-    vl_facet_wrap(field = "Day", type = "nominal", columns = 3, 
+    vl_facet_wrap(field = "Day", type = "nominal", columns = ncol, 
                   sort = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), title = NA) %>%
     vl_resolve_axis_y(how = "independent") %>% 
     vl_resolve_scale_y(how = "independent") %>% 
     vl_resolve_axis_x(how = "independent") %>%
+    vl_config_view(width = 200) %>%
     vegawidget()
 }
 
@@ -229,7 +234,7 @@ get_start_of_week_month <- function(x) {
   lubridate::month(x - lubridate::days(lubridate::wday(x, week_start = 1) - 1), label = TRUE)
 }
 
-completion_calendar <- function(df){
+completion_calendar <- function(df, width){
   # Make calendar plot showing days of completion, colored by streak
   # df input should be crossword data with Date and Duration columns
   n_col <- 4
@@ -285,8 +290,8 @@ completion_calendar <- function(df){
     vl_scale_x(domain = 51:0) %>%
     vl_axis_x(ticks = FALSE, labels = FALSE, domain = FALSE) %>% 
     vl_axis_y(ticks = FALSE, domain = FALSE) %>%
-    vl_config_view(stroke = "transparent") %>%
-    vl_add_properties(width = "500")
+    vl_config_view(stroke = "transparent") %>% 
+    vl_add_properties(height = "140", width = width)
 
   vegawidget(p3)
 }
