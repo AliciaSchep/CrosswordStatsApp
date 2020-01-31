@@ -1,6 +1,4 @@
 library(dplyr)
-library(ggplot2)
-#library(ggiraph)
 library(DT)
 
 to_time_format <- function(x) {
