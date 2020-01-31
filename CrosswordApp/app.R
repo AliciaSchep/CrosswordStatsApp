@@ -28,7 +28,7 @@ $(window).resize(function(e) {
   Shiny.onInputChange("dimension", dimension);
 });'
 
-
+sidebarWidth <- 250
 
 ui <- dashboardPage(
   dashboardHeader(title = "Crossword Stats"),
@@ -41,7 +41,8 @@ ui <- dashboardPage(
       menuItem("About", tabName = "About", icon = icon("question")),
       menuItem("Source", href = "https://github.com/AliciaSchep/CrosswordStatsApp", icon = icon("code")),
       refresh_menu
-    )
+    ),
+    width = sidebarWidth
   ),
   dashboardBody(
     tabItems(
@@ -168,13 +169,13 @@ server <- function(input, output, session) {
   # })
   
   output$trendPlot <- renderVegawidget(
-    quote(plot_over_time(c_data(), input$dimension[1] * 0.6)),
+    quote(plot_over_time(c_data(), ifelse(input$sidebarCollapsed, input$dimension[1], input$dimension[1] - sidebarWidth) * 0.75)),
     quote = TRUE
     )
   
   
   output$completionCalendar <- renderVegawidget(
-    quote(completion_calendar(c_data(), as.character(floor(input$dimension[1] * 0.65)))), 
+    quote(completion_calendar(c_data(), as.character(floor(ifelse(input$sidebarCollapsed, input$dimension[1], input$dimension[1] - sidebarWidth) * 0.8)))), 
     quoted = TRUE
   )
 
