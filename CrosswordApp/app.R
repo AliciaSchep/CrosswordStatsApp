@@ -1,10 +1,11 @@
 library(shiny)
 library(shinydashboard)
 library(DT)
-library(r2d3)
 library(shinycssloaders)
 library(sparkline)
 library(hms)
+library(vlbuildr)
+library(vegawidget)
 source("helpers.R")
 
 DATA_URL <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eezEaq1jXWy4Sr8QDsOR9ZtGQQrXQhPN6cpgEHbWcDB20D_p6O-HD3Pefscub9L/pub?gid=0&single=true&output=csv"
@@ -13,14 +14,30 @@ DATA_URL <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eez
 refresh_menu <- menuItem("Refresh", href = "#", icon = icon("refresh"), newtab = FALSE)
 refresh_menu$children[[1]]$attribs['onclick'] <- "Shiny.onInputChange('refreshLink','refresh'); return false"
 
+# Script for getting dimensions... hacky way of handling resize for now
+resize <-'
+var dimension = [0, 0];
+$(document).on("shiny:connected", function(e) {
+  dimension[0] = window.innerWidth;
+  dimension[1] = window.innerHeight;
+  Shiny.onInputChange("dimension", dimension);
+});
+$(window).resize(function(e) {
+  dimension[0] = window.innerWidth;
+  dimension[1] = window.innerHeight;
+  Shiny.onInputChange("dimension", dimension);
+});'
+
+
 
 ui <- dashboardPage(
   dashboardHeader(title = "Crossword Stats"),
   dashboardSidebar(
+    tags$head(tags$script(resize)),
     sidebarMenu(
       menuItem("Summary", tabName = "Summary", icon = icon("dashboard")),
       menuItem("Trends", tabName = "Trends", icon = icon("chart-line")),
-      menuItem("Records & Streaks", tabName = "Records_Streaks", icon = icon("trophy")),
+      #menuItem("Records & Streaks", tabName = "Records_Streaks", icon = icon("trophy")),
       menuItem("About", tabName = "About", icon = icon("question")),
       menuItem("Source", href = "https://github.com/AliciaSchep/CrosswordStatsApp", icon = icon("code")),
       refresh_menu
@@ -39,7 +56,7 @@ ui <- dashboardPage(
               title = "Summary by Day-of-Week")
           ),
           fluidRow(
-            box(d3Output("completionCalendar", height = "140px"), 
+            box(vegawidgetOutput("completionCalendar"), 
                 p("Hover over square to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
               width = 12,
               title = "Puzzle Completions in Past Year (Colored by Streak)")
@@ -47,25 +64,16 @@ ui <- dashboardPage(
       ),
       tabItem("Trends",
            fluidRow(
-             tabBox(
-               tabPanel('All',ggiraphOutput('trendPlot', height = "600px")),
-               tabPanel('Monday',ggiraphOutput('trendPlotMon', height = "600px")),
-               tabPanel('Tuesday',ggiraphOutput('trendPlotTue', height = "600px")),
-               tabPanel('Wednesday',ggiraphOutput('trendPlotWed', height = "600px")),
-               tabPanel('Thursday',ggiraphOutput('trendPlotThu', height = "600px")),
-               tabPanel('Friday',ggiraphOutput('trendPlotFri', height = "600px")),
-               tabPanel('Saturday',ggiraphOutput('trendPlotSat', height = "600px")),
-               tabPanel('Sunday',ggiraphOutput('trendPlotSun', height = "600px")),
-               width = 12
-               ),
-            box(p("Hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),width = 12)
+            box(vegawidgetOutput("trendPlot"),
+                p("Hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
+                width = 12)
           )),
-      tabItem("Records_Streaks",
-          fluidRow(
-            box(ggiraphOutput('recordPlot', height = "600px"),title = "Records over Time"),
-            box(ggiraphOutput('streakPlot', height = "600px"), title = "Streak lengths & duration")
-          )
-      ),
+      #tabItem("Records_Streaks",
+      #    fluidRow(
+      #      box(ggiraphOutput('recordPlot', height = "600px"),title = "Records over Time"),
+      #      box(ggiraphOutput('streakPlot', height = "600px"), title = "Streak lengths & duration")
+      #    )
+      #),
       tabItem("About",
           fluidRow(
             box(
@@ -79,8 +87,8 @@ ui <- dashboardPage(
                 "(and down-right outraged by the improper scaling of the bar chart). I want to be able to understand whether I am getting",
                 " faster and see trends by day of week. This dashboard is meant to showcase some more useful visualizations for crossword statistics!"),
               h3("Acknowledgments"),
-              p("This dashboard was made possible by open source projects, including shiny, DT, sparkline, shinydashboard, ggplot2, ggiraph, and r2d3. ","
-                Thanks also to those who have contributed documentation and blogs on using those tools; this", 
+              p("This dashboard was made possible by open source projects, including shiny, DT, sparkline, shinydashboard, vegawidget, andvlbuildr. ",
+                "Thanks also to those who have contributed documentation and blogs on using those tools; this", 
                 a("post by Matt Leonawicz",
                   href="https://leonawicz.github.io/HtmlWidgetExamples/ex_dt_sparkline.html"),
               "was especially helpful for getting the sparklines into the DT table."),
@@ -129,7 +137,6 @@ server <- function(input, output, session) {
       current_streak <- tail(get_streaks(c_data()),1)$streak_len
     }
     
-    
     valueBox(
       value = current_streak,
       subtitle = "Current Streak Length",
@@ -139,11 +146,7 @@ server <- function(input, output, session) {
   })
   
   output$longestStreak <- renderValueBox({
-    
-    
     max_streak <- max(get_streaks(c_data())$streak_len)
-    
-    
     valueBox(
       value = max_streak,
       subtitle = "Max Streak Length",
@@ -156,50 +159,24 @@ server <- function(input, output, session) {
     dow_summary_table(c_data())
   })
   
-  output$recordPlot <- renderggiraph({
-    plot_record_over_time(c_data())
-  })
+  # output$recordPlot <- renderggiraph({
+  #   plot_record_over_time(c_data())
+  # })
+  # 
+  # output$streakPlot <- renderggiraph({
+  #   plot_streak_times(c_data())
+  # })
   
-  output$streakPlot <- renderggiraph({
-    plot_streak_times(c_data())
-  })
-  
-  output$trendPlot <- renderggiraph({
-    plot_over_time(c_data())
-  })
-  
-  output$trendPlotMon <- renderggiraph({
-      plot_over_time(c_data(),"Mon")
-    })
-  
-  output$trendPlotTue <- renderggiraph({
-    plot_over_time(c_data(),"Tue")
-  })
-  
-  output$trendPlotWed <- renderggiraph({
-    plot_over_time(c_data(),"Wed")
-  })
-  
-  output$trendPlotThu <- renderggiraph({
-    plot_over_time(c_data(),"Thu")
-  })
-  
-  output$trendPlotFri <- renderggiraph({
-    plot_over_time(c_data(),"Fri")
-  })
-  
-  output$trendPlotSat <- renderggiraph({
-    plot_over_time(c_data(),"Sat")
-  })
-  
-  output$trendPlotSun <- renderggiraph({
-    plot_over_time(c_data(),"Sun")
-  })
+  output$trendPlot <- renderVegawidget(
+    quote(plot_over_time(c_data(), input$dimension[1] * 0.6)),
+    quote = TRUE
+    )
   
   
-  output$completionCalendar <- renderD3({
-    completion_calendar(c_data())
-  })
+  output$completionCalendar <- renderVegawidget(
+    quote(completion_calendar(c_data(), as.character(floor(input$dimension[1] * 0.65)))), 
+    quoted = TRUE
+  )
 
 }
 
