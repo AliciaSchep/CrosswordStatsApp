@@ -119,50 +119,6 @@ plot_record_over_time <- function(df) {
 }
 
 
-plot_over_time <- function(df, day = NULL){
-  # Plot duration over time
-  # df input should be crossword data with Date and Duration columns
-  # If day argument is provided, only plot for single day
-  if (!is.null(day)){
-    df <- df %>% filter((lubridate::wday(Date, label = TRUE) == day))
-  }
-  df <- df %>%  
-    mutate(Day =  factor(lubridate::wday(Date, label = TRUE),
-                         ordered = TRUE,
-                         levels = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")))
-  df_fastest <- df %>% group_by(Day) %>% summarize(fastest_duration = min(Duration))
-  df <-  df %>% 
-      inner_join(df_fastest, by = "Day") %>% 
-      mutate(
-           fastest = if_else(Duration == fastest_duration, glue::glue("Fastest {Day} Solve Time!"),""),
-           tooltip = glue::glue("Date: {Date} ({Day})<br>Solve Time: {Duration}<br>{fastest}"),
-           onclick = glue::glue("window.open(\"https://www.nytimes.com/crosswords/game/daily/{strftime(Date,format = '%Y/%m/%d')}\")"),
-           Symbol = factor("Single Puzzle", levels = c("Single Puzzle","Trend","Fastest Solve")))
-  
-
-  p <- ggplot(df, aes(x = Date, y = Duration, color = Day, shape = Symbol, lty = Symbol)) + 
-    geom_point(data = filter(df, Duration == fastest_duration), shape = 1, size = 4) +
-    geom_smooth(se = FALSE) + 
-    scale_y_time(labels = function(x){strftime(x,'%H:%M')}, limits = c(0,NA)) +
-    geom_point_interactive(aes(tooltip = tooltip, onclick = onclick)) + 
-    scale_color_brewer(palette = "Dark2", drop = FALSE) +
-    theme_bw(14) +
-    ylab("Solve Time (Hours:Minutes)") + 
-    scale_shape_discrete(drop = FALSE, name = '') +
-    scale_linetype_discrete(drop = FALSE, name = '') +
-    guides(color = guide_legend(override.aes = list(shape = 15, linetype = 'blank')),
-           shape = guide_legend(override.aes = list(shape = c(16, NA, 1), 
-                                                    linetype = c('blank','solid','blank'),
-                                                    size = c(2,1,4),
-                                                    color = 'black')))
-  if (!is.null(day)) {
-    p <- p + ggtitle(glue::glue("Solve Time Trend ({day})")) 
-  } else{
-    p <- p + ggtitle("Solve Time Trends by Day of Week")
-  }
-  girafe(ggobj = p, options = list(opts_sizing(rescale = TRUE, width = .8)))
-}
-
 plot_over_time <- function(df, width){
   # Plot duration over time
   # df input should be crossword data with Date and Duration columns
@@ -183,7 +139,8 @@ plot_over_time <- function(df, width){
     arrange(fastest)
   
   # Use with to get number of columns
-  ncol <- max(1, floor( width / 200))
+  view_width = 250
+  ncol <- max(1, floor( width / view_width))
   
   l1 <- vl_chart() %>% 
     vl_window(frame = list(-5,5), 
@@ -218,7 +175,7 @@ plot_over_time <- function(df, width){
     vl_resolve_axis_y(how = "independent") %>% 
     vl_resolve_scale_y(how = "independent") %>% 
     vl_resolve_axis_x(how = "independent") %>%
-    vl_config_view(width = 200) %>%
+    vl_config_view(width = view_width) %>%
     vegawidget()
 }
 
