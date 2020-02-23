@@ -164,11 +164,8 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
     vl_filter(glue("datum.Date >= {start_date_vl}")) %>%
     vl_filter(glue("datum.Date <= {end_date_vl}")) %>%
     vl_encode_x("Date:T") %>%
-    #vl_scale_x(domain = list(start_date_vl, end_date_vl)) %>%
     vl_encode_y("rolling_mean:Q") %>%
-    vl_mark_line(interpolate = "monotone", clip = TRUE, tooltip = glue("Moving average (Last {window} points)")) 
-  
-  print(vw_as_json(l1))
+    vl_mark_line(interpolate = "monotone", tooltip = glue("Moving average (Last {window} points)")) 
   
   l2 <- vl_chart() %>% 
     vl_window(frame = list(NA,0), 
@@ -179,7 +176,7 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
     vl_filter(glue("datum.Date <= {end_date_vl}")) %>%
     vl_encode_x("Date:T") %>%
     vl_encode_y("rolling_min:Q") %>%
-    vl_mark_area(interpolate = "step-after", clip = TRUE, color = 'red', opacity = 0.2, tooltip = "Record time")
+    vl_mark_area(interpolate = "step-after", color = 'red', opacity = 0.2, tooltip = "Record time")
   
   l3 <- vl_chart() %>%
     vl_filter(glue("datum.Date >= {start_date_vl}")) %>%
@@ -196,7 +193,7 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
     vl_condition_shape(test = "datum.fastest",
                        value = "M0,.5L.6,.8L.5,.1L1,-.3L.3,-.4L0,-1L-.3,-.4L-1,-.3L-.5,.1L-.6,.8L0,.5Z") %>%
     vl_encode_href("links:N") %>%
-    vl_mark_point(filled = TRUE, clip = TRUE) %>%
+    vl_mark_point(filled = TRUE) %>%
     vl_axis_x(title = NA) %>%
     vl_axis_y(labelExpr = "round(datum.value / 60)", title = "Solve Time (minutes)") %>%
     vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "temporal"), vl$Tooltip(field = "Solve Time", type = "nominal")))  %>%
