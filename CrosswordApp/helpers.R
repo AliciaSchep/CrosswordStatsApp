@@ -72,27 +72,35 @@ dow_summary_table <- function(df){
   d
 }
 
-plot_streak_times <- function(df) {
-  streak_data <- df %>% 
+plot_streak_times <- function(df, width) {
+  streak_grouped <- df %>% 
     mutate(
       Day = lubridate::wday(Date, label = TRUE),
       opens = Date - lag(Date,1, default = lubridate::ymd('1000-10-10')) != lubridate::days(1), grp = cumsum(opens)) %>%  
     group_by(grp) %>% 
     mutate(relative_day = row_number(), 
-           total_duration = as.hms(cumsum(as.numeric(Duration)))) %>% 
-    ungroup() %>%
-    mutate(tooltip =  glue::glue("Date: {Date} ({Day})<br>Solve Time: {Duration}<br>Streak Day: {relative_day}<br>Total Streak Duration: {total_duration}"))
+           total_duration = cumsum(as.numeric(Duration))) 
   
-  p <- ggplot(streak_data, aes(x = relative_day, y = total_duration, group = grp, color = grp)) + 
-    geom_line() + 
-    xlab("Days since start of streak") + 
-    ylab("Total solving time during streak") + 
-    theme_bw(14) + 
-    scale_color_gradientn(colors = RColorBrewer::brewer.pal(9,"YlOrRd")[3:9], breaks = function(x) x, labels = c('Long ago', 'Recent')) + 
-    geom_point_interactive(aes(tooltip = tooltip)) + 
-    theme(legend.position = c(0.8,0.1), legend.direction = "horizontal", legend.title = element_blank())
+  streak_agg <- streak_grouped %>%
+    summarise(`Streak Start` = min(Date), len = n()) %>%
+    top_n(5, len)
+    
+  streak_data <- streak_agg %>% 
+    inner_join(ungroup(streak_grouped), by = "grp") %>%
+    mutate(`Solve Time` = to_time_format(Duration),
+           `Total Time` = to_time_format(as_hms(total_duration))) %>%
+    select(relative_day, `Streak Start`, Date, total_duration, Duration, `Solve Time`, `Total Time`)
   
-  girafe(ggobj = p)
+  vl_chart(streak_data) %>%
+    vl_mark_line(point = TRUE) %>%
+    vl_encode_x("relative_day:Q", title = "Days since start of streak") %>%
+    vl_encode_y("total_duration:Q", title = "Total solving time during streak (hrs)") %>%
+    vl_encode_tooltip(c("Date","Solve Time","Total Time")) %>%
+    vl_encode_color("Streak Start:N") %>%
+    vl_axis_y(labelExpr = "round(datum.value / 3600)")  %>%
+    vl_config_view(width = width * 0.95, height = min(width,350)) %>%
+    vl_scale_color(scheme = "Dark2") %>%
+    vegawidget()
 }
 
 plot_over_time <- function(df, width, window, date_range, day_of_week){

@@ -37,7 +37,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Summary", tabName = "Summary", icon = icon("dashboard")),
       menuItem("Trends", tabName = "Trends", icon = icon("chart-line")),
-      #menuItem("Records & Streaks", tabName = "Records_Streaks", icon = icon("trophy")),
+      menuItem("Streaks", tabName = "Streaks", icon = icon("trophy")),
       menuItem("About", tabName = "About", icon = icon("question")),
       menuItem("Source", href = "https://github.com/AliciaSchep/CrosswordStatsApp", icon = icon("code")),
       refresh_menu
@@ -79,12 +79,11 @@ ui <- dashboardPage(
                 p("Hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
                 width = 12)
           )),
-      #tabItem("Records_Streaks",
-      #    fluidRow(
-      #      box(ggiraphOutput('recordPlot', height = "600px"),title = "Records over Time"),
-      #      box(ggiraphOutput('streakPlot', height = "600px"), title = "Streak lengths & duration")
-      #    )
-      #),
+      tabItem("Streaks",
+          fluidRow(
+            box(vegawidgetOutput('streakPlot'), title = "Streak lengths & duration", width = 12)
+          )
+      ),
       tabItem("About",
           fluidRow(
             box(
@@ -176,13 +175,14 @@ server <- function(input, output, session) {
     dow_summary_table(c_data())
   })
   
-  # output$recordPlot <- renderggiraph({
-  #   plot_record_over_time(c_data())
-  # })
-  # 
-  # output$streakPlot <- renderggiraph({
-  #   plot_streak_times(c_data())
-  # })
+  output$streakPlot <- renderVegawidget(
+    quote(
+      plot_streak_times(
+        c_data(), 
+        ifelse(input$sidebarCollapsed, input$dimension[1], input$dimension[1] - sidebarWidth) * 0.75)
+      ),
+    quote = TRUE
+  )
   
   output$trendPlot <- renderVegawidget(
     quote(
