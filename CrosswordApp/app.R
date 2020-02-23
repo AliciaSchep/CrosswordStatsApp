@@ -65,6 +65,16 @@ ui <- dashboardPage(
       ),
       tabItem("Trends",
            fluidRow(
+             box(radioButtons("dayOfWeek", "Day of Week", 
+                              choices = c("All", "Mon", "Tue", "Wed",
+                                          "Thu", "Fri", "Sat", "Sun"),
+                              selected = "All", inline = TRUE), width = 4),
+             box(uiOutput("dateSlider"), width = 4),
+             box(sliderInput("smoothWindow", "Moving Average Window:",
+                             min = 1, max = 25,
+                             value = 10, step = 1), width = 4)
+           ),
+           fluidRow(
             box(vegawidgetOutput("trendPlot"),
                 p("Hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
                 width = 12)
@@ -115,6 +125,12 @@ server <- function(input, output, session) {
     input$refreshLink
     invalidateLater(1000000)
     readr::read_csv(DATA_URL)
+  })
+  
+  output$dateSlider <- renderUI({
+    min_date = min(c_data()$Date)
+    max_date = max(c_data()$Date)
+    sliderInput("dateRange", "Date Range:", min = min_date, max = max_date, value = c(min_date, max_date))
   })
   
 
@@ -169,7 +185,13 @@ server <- function(input, output, session) {
   # })
   
   output$trendPlot <- renderVegawidget(
-    quote(plot_over_time(c_data(), ifelse(input$sidebarCollapsed, input$dimension[1], input$dimension[1] - sidebarWidth) * 0.75)),
+    quote(
+      plot_over_time(
+        c_data(), 
+        ifelse(input$sidebarCollapsed, input$dimension[1], input$dimension[1] - sidebarWidth) * 0.75, 
+        input$smoothWindow,
+        input$dateRange,
+        input$dayOfWeek)),
     quote = TRUE
     )
   
