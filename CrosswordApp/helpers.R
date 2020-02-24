@@ -103,6 +103,68 @@ plot_streak_times <- function(df, width) {
     vegawidget()
 }
 
+plot_distributions <-  function(df, width, window, date_range, day_of_week){
+  if (is.null(date_range)) return(NULL)
+  
+  plot_all <- day_of_week == "All"
+  # Plot duration over time
+  # df input should be crossword data with Date and Duration columns
+  df_with_day <- df %>% 
+    mutate(Day =  lubridate::wday(Date, label = TRUE),
+    duration_minutes = as.numeric(Duration) / 60
+  ) 
+  
+  df_most_recent <- df_with_day %>% 
+    group_by(Day) %>% 
+    top_n(1, Date) %>% 
+    ungroup() %>%
+    select(Date) %>%
+    mutate(most_recent = TRUE)
+  
+  if (!plot_all) {
+    df_with_day <- df_with_day %>% filter(
+      Day == day_of_week
+    )
+  }
+  
+
+  chart_data <- df_with_day %>%
+    #filter(Date >= lubridate::as_date(date_range[1]),
+    #       Date <-  lubridate::as_date(date_range[2])) %>%
+    left_join(df_most_recent, by = "Date") %>%
+    mutate(most_recent = coalesce(most_recent, FALSE),
+           duration_plus = duration_minutes + runif(length(duration_minutes),0,1/60)) %>%
+    group_by(Day) %>%
+    mutate(rank = 100 -percent_rank(duration_plus) * 100) %>%
+    ungroup() %>%
+    select(Day, duration_minutes, most_recent, rank) 
+  
+  dist_plot <- vl_chart(chart_data) %>% 
+    vl_encode_y("duration_minutes:Q") %>%
+    vl_encode_x("rank:Q", title = "Percentile") %>%
+    vl_mark_bar() %>% 
+    vl_encode_color("most_recent", legend = NA) 
+ 
+  
+  if (plot_all) {
+    # Use with to get number of columns
+    view_width = 250
+    ncol <- max(1, floor( width / view_width))
+    dist_plot <- dist_plot %>% 
+      vl_facet_wrap(field = "Day", type = "nominal", columns = ncol, 
+                    sort = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), title = NA,
+                    header = list(labelFontStyle = "bold", labelFontSize = 16, labelPadding = 2)) %>%
+      vl_resolve_axis_y(how = "independent") %>% 
+      vl_resolve_scale_y(how = "independent") %>% 
+      vl_resolve_axis_x(how = "independent") %>%
+      vl_config_view(width = view_width)
+  } else {
+    dist_plot<- dist_plot %>%
+      vl_config_view(width = width, height = min(width, 350))
+  }
+  vegawidget(dist_plot)
+}
+
 plot_over_time <- function(df, width, window, date_range, day_of_week){
   if (is.null(date_range)) return(NULL)
   
@@ -120,6 +182,10 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
   df_fastest <- df_with_day %>% 
     group_by(Day) %>% 
     summarize(fastest_duration = min(Duration))
+  
+  start_date <- max(lubridate::as_date(date_range[1]), min(df_with_day$Date))
+  end_date <- lubridate::as_date(date_range[2])
+  
   chart_data <- df_with_day %>% inner_join(df_fastest, by = "Day") %>% 
     mutate(
       fastest = Duration == fastest_duration,
@@ -129,103 +195,95 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
       ) %>% 
     select(Date, duration_seconds, fastest, `Solve Time`, Day, links) %>%
     arrange(fastest) %>%
-    mutate(valid = TRUE) %>% 
+    #mutate(valid = TRUE) %>% 
     group_by(Day) %>%
-    mutate(rank = min_rank(Date)) %>%
+    mutate(rank = min_rank(Date),
+           valid = between(Date,start_date, end_date)) %>%
     ungroup()
   
-  ## a hack to get the area to line up
-  min_date <- min(chart_data$Date)
-  min_df <- chart_data %>% 
-    group_by(Day) %>% 
-    top_n(1, desc(Date)) %>% 
-    ungroup() %>%
-    mutate(Date = min_date,
-           valid = FALSE)
+  #start_date_vl <- glue("datetime({lubridate::year(start_date)}, {lubridate::month(start_date)}, {lubridate::day(start_date)})")
+  #end_date_vl <- glue("datetime({lubridate::year(end_date)}, {lubridate::month(end_date)}, {lubridate::day(end_date)})")
   
-  max_date <- max(chart_data$Date)
-  max_df <- chart_data %>% 
-    group_by(Day) %>% 
-    top_n(1, Date) %>% 
-    ungroup() %>%
-    mutate(Date = max_date,
-           valid = FALSE)
-  
-  chart_data <- bind_rows(chart_data, min_df, max_df)
-  
-  start_date <- lubridate::as_date(date_range[1])
-  end_date <- lubridate::as_date(date_range[2])
-  
-  start_date_vl <- glue("datetime({lubridate::year(start_date)}, {lubridate::month(start_date)}, {lubridate::day(start_date)})")
-  end_date_vl <- glue("datetime({lubridate::year(end_date)}, {lubridate::month(end_date)}, {lubridate::day(end_date)})")
-  
-  
-  l1 <- vl_chart() %>% 
-    vl_filter("datum.valid") %>%
-    vl_window(frame = list(-(window - 1),0), 
-              window = list(vl$Window(field = "duration_seconds", op = "mean", as = "rolling_mean")), 
-              sort = list(list("field"= "Date", "order"= "ascending")),
-              groupby = list("Day")) %>%
-    # Putting this filter after the window makes sure it only affects where plotting is happening not
-    # the averaging... this is making sure that line is showing up after a few points
-    vl_filter("datum.rank > 2") %>% 
-    vl_filter(glue("datum.Date >= {start_date_vl}")) %>%
-    vl_filter(glue("datum.Date <= {end_date_vl}")) %>%
-    vl_encode_x("Date:T") %>%
-    vl_encode_y("rolling_mean:Q") %>%
-    vl_mark_line(interpolate = "monotone", tooltip = glue("Moving average (Last {window} points)")) 
-  
-  l2 <- vl_chart() %>% 
-    vl_window(frame = list(NA,0), 
-              window = list(vl$Window(field = "duration_seconds", op = "min", as = "rolling_min")), 
-              sort = list(list("field"= "Date", "order"= "ascending")),
-              groupby = list("Day")) %>%
-    vl_filter(glue("datum.Date >= {start_date_vl}")) %>%
-    vl_filter(glue("datum.Date <= {end_date_vl}")) %>%
-    vl_encode_x("Date:T") %>%
-    vl_encode_y("rolling_min:Q") %>%
-    vl_mark_area(interpolate = "step-after", color = 'red', opacity = 0.2, tooltip = "Record time")
-  
-  l3 <- vl_chart() %>%
-    vl_filter(glue("datum.Date >= {start_date_vl}")) %>%
-    vl_filter(glue("datum.Date <= {end_date_vl}")) %>%
-    vl_encode_x("Date:T") %>%
-    vl_encode_y("duration_seconds:Q") %>%
-    vl_encode_shape(value = "circle") %>%
-    vl_encode_color(value = "grey") %>%
-    vl_encode_size(value = 25) %>%
-    vl_condition_size(test = "datum.fastest",
-                       value = 100) %>%
-    vl_condition_color(test = "datum.fastest",
-                       value = "red") %>%
-    vl_condition_shape(test = "datum.fastest",
-                       value = "M0,.5L.6,.8L.5,.1L1,-.3L.3,-.4L0,-1L-.3,-.4L-1,-.3L-.5,.1L-.6,.8L0,.5Z") %>%
-    vl_encode_href("links:N") %>%
-    vl_mark_point(filled = TRUE) %>%
-    vl_axis_x(title = NA) %>%
-    vl_axis_y(labelExpr = "round(datum.value / 60)", title = "Solve Time (minutes)") %>%
-    vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "temporal"), vl$Tooltip(field = "Solve Time", type = "nominal")))  %>%
-    vl_filter("datum.valid")
-  
-  layered <- vl_layer(l1, l2, l3) %>%
-    vl_add_data(chart_data) 
+  max_y <- max(filter(chart_data, Date >= start_date, Date <= end_date)$duration_seconds)
   
   if (plot_all) {
-    # Use with to get number of columns
-    view_width = 250
-    ncol <- max(1, floor( width / view_width))
-    layered <- layered %>% 
-      vl_facet_wrap(field = "Day", type = "nominal", columns = ncol, 
-                    sort = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), title = NA,
-                    header = list(labelFontStyle = "bold", labelFontSize = 16, labelPadding = 2)) %>%
-      vl_resolve_axis_y(how = "independent") %>% 
-      vl_resolve_scale_y(how = "independent") %>% 
-      vl_resolve_axis_x(how = "independent") %>%
-      vl_config_view(width = view_width)
+    
+    # Problem -- these are not all by day... need to be.
+    #min_rank <- min(filter(chart_data, valid)$rank) - window
+    #min_rank2 <- max(2, min(filter(chart_data, valid)$rank) - 1)
+    
+    out <- vl_chart(chart_data) %>% 
+      #vl_filter(glue("datum.rank >= {min_rank}")) %>%
+      vl_window(frame = list(-(window - 1),0), 
+                window = list(vl$Window(field = "duration_seconds", op = "mean", as = "rolling_mean")), 
+                sort = list(list("field"= "Date", "order"= "ascending")),
+                groupby = list("Day")) %>%
+      vl_filter("datum.rank > 2") %>%
+      #vl_filter(glue("datum.rank >= {min_rank2}")) %>%
+      vl_encode_x("Date:T") %>%
+      vl_scale_x(domain = list(
+        list(year = lubridate::year(start_date), month = lubridate::month(start_date), day = lubridate::day(start_date)),
+        list(year = lubridate::year(end_date), month = lubridate::month(end_date), day = lubridate::day(end_date))
+      )) %>%
+      vl_encode_y("rolling_mean:Q") %>%
+      vl_scale_y(domain = list(0, max_y * 1.05)) %>%
+      vl_axis_x(title = NA) %>%
+      vl_axis_y(labelExpr = "round(datum.value / 60)", title = "Solve Time (minutes)") %>%
+      vl_encode_color("Day:N") %>%
+      vl_scale_color(domain = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), scheme = "Dark2") %>%
+      vl_mark_line(interpolate = "monotone", clip = TRUE, tooltip = glue("Moving average (Last {window} points)")) %>%
+      vl_config_view(width = width, height = min(width, 350)) %>%
+      vegawidget()
   } else {
-    layered <- layered %>% vl_config_view(width = width, height = min(width, 350))
+    l1 <- vl_chart() %>% 
+      vl_window(frame = list(-(window - 1),0), 
+                window = list(vl$Window(field = "duration_seconds", op = "mean", as = "rolling_mean")), 
+                sort = list(list("field"= "Date", "order"= "ascending")),
+                groupby = list("Day")) %>%
+      # Putting this filter after the window makes sure it only affects where plotting is happening not
+      # the averaging... this is making sure that line is showing up after a few points
+      vl_filter("datum.rank > 2") %>% 
+      vl_filter(glue("datum.valid")) %>%
+      vl_encode_x("Date:T") %>%
+      vl_encode_y("rolling_mean:Q") %>%
+      vl_mark_line(interpolate = "monotone", tooltip = glue("Moving average (Last {window} points)"), clip = TRUE) 
+    
+    l2 <- vl_chart() %>% 
+      vl_window(frame = list(NA,0), 
+                window = list(vl$Window(field = "duration_seconds", op = "min", as = "rolling_min")), 
+                sort = list(list("field"= "Date", "order"= "ascending")),
+                groupby = list("Day")) %>%
+      vl_filter(glue("datum.valid")) %>%
+      vl_encode_x("Date:T") %>%
+      vl_encode_y("rolling_min:Q") %>%
+      vl_mark_area(interpolate = "step-after", color = 'red', opacity = 0.2, tooltip = "Record time", clip = TRUE)
+    
+    l3 <- vl_chart()  %>%
+      vl_filter(glue("datum.valid")) %>%
+      vl_encode_x("Date:T") %>%
+      vl_encode_y("duration_seconds:Q") %>%
+      vl_encode_shape(value = "circle") %>%
+      vl_encode_color(value = "grey") %>%
+      vl_encode_size(value = 25) %>%
+      vl_condition_size(test = "datum.fastest",
+                        value = 100) %>%
+      vl_condition_color(test = "datum.fastest",
+                         value = "red") %>%
+      vl_condition_shape(test = "datum.fastest",
+                         value = "M0,.5L.6,.8L.5,.1L1,-.3L.3,-.4L0,-1L-.3,-.4L-1,-.3L-.5,.1L-.6,.8L0,.5Z") %>%
+      vl_encode_href("links:N") %>%
+      vl_mark_point(filled = TRUE) %>%
+      vl_axis_x(title = NA) %>%
+      vl_axis_y(labelExpr = "round(datum.value / 60)", title = "Solve Time (minutes)") %>%
+      vl_encode_tooltip(list(vl$Tooltip(field = "Date", type = "temporal"), vl$Tooltip(field = "Solve Time", type = "nominal")))
+    
+    layered <- vl_layer(l1, l2, l3) %>%
+      vl_add_data(chart_data) %>%
+      vl_config_view(width = width, height = min(width, 350))
+    out <- vegawidget(layered) 
   }
-  vegawidget(layered)
+  
+  out
 }
 
 get_weeks_ago <- function(x) {

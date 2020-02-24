@@ -76,7 +76,7 @@ ui <- dashboardPage(
            ),
            fluidRow(
             box(vegawidgetOutput("trendPlot"),
-                p("Hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
+                p("On single day plots, hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
                 width = 12)
           )),
       tabItem("Streaks",
