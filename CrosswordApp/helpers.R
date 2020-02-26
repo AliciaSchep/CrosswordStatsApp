@@ -103,7 +103,7 @@ plot_streak_times <- function(df, width) {
     vegawidget()
 }
 
-plot_distributions <-  function(df, width, window, date_range, day_of_week){
+plot_distributions <-  function(df, width, date_range, day_of_week){
   if (is.null(date_range)) return(NULL)
   
   plot_all <- day_of_week == "All"
@@ -129,8 +129,8 @@ plot_distributions <-  function(df, width, window, date_range, day_of_week){
   
 
   chart_data <- df_with_day %>%
-    #filter(Date >= lubridate::as_date(date_range[1]),
-    #       Date <-  lubridate::as_date(date_range[2])) %>%
+    filter(Date >= lubridate::as_date(date_range[1]),
+           Date <=  lubridate::as_date(date_range[2])) %>%
     left_join(df_most_recent, by = "Date") %>%
     mutate(most_recent = coalesce(most_recent, FALSE),
            duration_plus = duration_minutes + runif(length(duration_minutes),0,1/60)) %>%
@@ -139,11 +139,20 @@ plot_distributions <-  function(df, width, window, date_range, day_of_week){
     ungroup() %>%
     select(Day, duration_minutes, most_recent, rank) 
   
-  dist_plot <- vl_chart(chart_data) %>% 
-    vl_encode_y("duration_minutes:Q") %>%
+  l1 <- vl_chart() %>% 
+    vl_encode_y("duration_minutes:Q", title = "Solve Time (Minutes)") %>%
     vl_encode_x("rank:Q", title = "Percentile") %>%
-    vl_mark_bar() %>% 
-    vl_encode_color("most_recent", legend = NA) 
+    vl_mark_area(interpolate = "step")
+  
+  l2 <- vl_chart() %>% 
+    vl_filter("datum.most_recent") %>%
+    #vl_encode_y("duration_minutes:Q") %>%
+    vl_encode_x("rank:Q", title = "Percentile") %>%
+    vl_encode_size(value = 3) %>%
+    vl_mark_rule(color = 'orange')
+  
+  dist_plot <-vl_layer(l1,l2) %>%
+    vl_add_data(chart_data)
  
   
   if (plot_all) {

@@ -37,7 +37,8 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Summary", tabName = "Summary", icon = icon("dashboard")),
       menuItem("Trends", tabName = "Trends", icon = icon("chart-line")),
-      menuItem("Streaks", tabName = "Streaks", icon = icon("trophy")),
+      menuItem("Distributions", tabName = "Distributions", icon = icon("chart-area")),
+      menuItem("Streaks", tabName = "Streaks", icon = icon("stream")),
       menuItem("About", tabName = "About", icon = icon("question")),
       menuItem("Source", href = "https://github.com/AliciaSchep/CrosswordStatsApp", icon = icon("code")),
       refresh_menu
@@ -79,6 +80,17 @@ ui <- dashboardPage(
                 p("On single day plots, hover over point to see date and completion time; click to go to puzzle (requires NYT Crosswords subscription)"),
                 width = 12)
           )),
+      tabItem("Distributions",
+              fluidRow(
+                box(radioButtons("dayOfWeek2", "Day of Week", 
+                                 choices = c("All", "Mon", "Tue", "Wed",
+                                             "Thu", "Fri", "Sat", "Sun"),
+                                 selected = "All", inline = TRUE), width = 4),
+                box(uiOutput("dateSlider2"), width = 4)
+              ),
+              fluidRow(
+                box(vegawidgetOutput("distPlot"),width = 12)
+              )),
       tabItem("Streaks",
           fluidRow(
             box(vegawidgetOutput('streakPlot'), title = "Streak lengths & duration", width = 12)
@@ -130,6 +142,12 @@ server <- function(input, output, session) {
     min_date = min(c_data()$Date)
     max_date = max(c_data()$Date)
     sliderInput("dateRange", "Date Range:", min = min_date, max = max_date, value = c(min_date, max_date))
+  })
+  
+  output$dateSlider2 <- renderUI({
+    min_date = min(c_data()$Date)
+    max_date = max(c_data()$Date)
+    sliderInput("dateRange2", "Date Range:", min = min_date, max = max_date, value = c(min_date, max_date))
   })
   
 
@@ -194,6 +212,16 @@ server <- function(input, output, session) {
         input$dayOfWeek)),
     quote = TRUE
     )
+  
+  output$distPlot <- renderVegawidget(
+    quote(
+      plot_distributions(
+        c_data(), 
+        ifelse(input$sidebarCollapsed, input$dimension[1], input$dimension[1] - sidebarWidth) * 0.75, 
+        input$dateRange2,
+        input$dayOfWeek2)),
+    quote = TRUE
+  )
   
   
   output$completionCalendar <- renderVegawidget(
