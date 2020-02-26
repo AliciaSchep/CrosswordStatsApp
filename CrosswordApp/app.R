@@ -38,7 +38,7 @@ ui <- dashboardPage(
       menuItem("Summary", tabName = "Summary", icon = icon("dashboard")),
       menuItem("Trends", tabName = "Trends", icon = icon("chart-line")),
       menuItem("Distributions", tabName = "Distributions", icon = icon("chart-area")),
-      menuItem("Streaks", tabName = "Streaks", icon = icon("stream")),
+      menuItem("Streaks", tabName = "Streaks", icon = icon("link")),
       menuItem("About", tabName = "About", icon = icon("question")),
       menuItem("Source", href = "https://github.com/AliciaSchep/CrosswordStatsApp", icon = icon("code")),
       refresh_menu

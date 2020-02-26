@@ -157,7 +157,7 @@ plot_distributions <-  function(df, width, date_range, day_of_week){
   
   if (plot_all) {
     # Use with to get number of columns
-    view_width = 250
+    view_width = 150
     ncol <- max(1, floor( width / view_width))
     dist_plot <- dist_plot %>% 
       vl_facet_wrap(field = "Day", type = "nominal", columns = ncol, 
@@ -166,7 +166,7 @@ plot_distributions <-  function(df, width, date_range, day_of_week){
       vl_resolve_axis_y(how = "independent") %>% 
       vl_resolve_scale_y(how = "independent") %>% 
       vl_resolve_axis_x(how = "independent") %>%
-      vl_config_view(width = view_width)
+      vl_config_view(width = view_width, height = 150)
   } else {
     dist_plot<- dist_plot %>%
       vl_config_view(width = width, height = min(width, 350))
