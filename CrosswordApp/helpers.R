@@ -135,41 +135,62 @@ plot_distributions <-  function(df, width, date_range, day_of_week){
     mutate(most_recent = coalesce(most_recent, FALSE),
            duration_plus = duration_minutes + runif(length(duration_minutes),0,1/60)) %>%
     group_by(Day) %>%
-    mutate(rank = 100 -percent_rank(duration_plus) * 100) %>%
+    mutate(percent_rank = 100 -percent_rank(duration_plus) * 100,
+           rank = rank(duration_plus),
+           total = n()) %>%#,
+           #y_max = max(duration_minutes)) %>%
     ungroup() %>%
-    select(Day, duration_minutes, most_recent, rank) 
+    mutate(text = if_else(most_recent,glue("Last Solve:\n{rank} out of {total}\n{to_time_format(Duration)}"),"")) %>% #,
+           #x_label = 70) %>%
+    select(Day, duration_minutes, most_recent, percent_rank,text) 
   
   l1 <- vl_chart() %>% 
     vl_encode_y("duration_minutes:Q", title = "Solve Time (Minutes)") %>%
-    vl_encode_x("rank:Q", title = "Percentile") %>%
+    vl_encode_x("percent_rank:Q", title = "Percentile") %>%
     vl_mark_area(interpolate = "step")
   
   l2 <- vl_chart() %>% 
     vl_filter("datum.most_recent") %>%
-    #vl_encode_y("duration_minutes:Q") %>%
-    vl_encode_x("rank:Q", title = "Percentile") %>%
+    vl_encode_y("duration_minutes:Q") %>%
+    vl_encode_x("percent_rank:Q", title = "Percentile") %>%
     vl_encode_size(value = 3) %>%
-    vl_mark_rule(color = 'orange')
-  
-  dist_plot <-vl_layer(l1,l2) %>%
-    vl_add_data(chart_data)
+    vl_mark_rule(color = 'red')
  
   
   if (plot_all) {
     # Use with to get number of columns
     view_width = 150
     ncol <- max(1, floor( width / view_width))
-    dist_plot <- dist_plot %>% 
+    
+    l3 <- vl_chart() %>%
+      vl_filter("datum.most_recent") %>%
+      vl_encode_x(value = 100) %>%
+      vl_encode_y(value = 15) %>% 
+      vl_encode_text("text:N") %>%
+      vl_mark_text(lineBreak = '\n', color = 'red')
+    
+    dist_plot <-vl_layer(l1,l2, l3) %>%
+      vl_add_data(chart_data) %>% 
       vl_facet_wrap(field = "Day", type = "nominal", columns = ncol, 
                     sort = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"), title = NA,
                     header = list(labelFontStyle = "bold", labelFontSize = 16, labelPadding = 2)) %>%
       vl_resolve_axis_y(how = "independent") %>% 
       vl_resolve_scale_y(how = "independent") %>% 
       vl_resolve_axis_x(how = "independent") %>%
-      vl_config_view(width = view_width, height = 150)
+      vl_config_view(width = view_width, height = 150) %>% 
+      vl_config_axis(grid = FALSE)
   } else {
-    dist_plot<- dist_plot %>%
-      vl_config_view(width = width, height = min(width, 350))
+    l3 <- vl_chart() %>%
+      vl_filter("datum.most_recent") %>%
+      vl_encode_x(value = width * 0.8) %>%
+      vl_encode_y(value = 25) %>% 
+      vl_encode_text("text:N") %>%
+      vl_mark_text(lineBreak = '\n', color = 'red',fontSize = 14)
+    
+    dist_plot <-vl_layer(l1,l2, l3) %>%
+      vl_add_data(chart_data) %>%
+      vl_config_view(width = width, height = min(width, 350)) %>% 
+      vl_config_axis(grid = FALSE)
   }
   vegawidget(dist_plot)
 }
