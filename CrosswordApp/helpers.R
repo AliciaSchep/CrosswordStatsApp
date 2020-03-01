@@ -160,7 +160,8 @@ plot_distributions <-  function(df, width, date_range, day_of_week){
   if (plot_all) {
     # Use with to get number of columns
     view_width = 150
-    ncol <- max(1, floor( width / view_width))
+    view_height = 125
+    ncol <- max(1, floor( width / (view_width * 1.1)))
     
     l3 <- vl_chart() %>%
       vl_filter("datum.most_recent") %>%
@@ -177,7 +178,7 @@ plot_distributions <-  function(df, width, date_range, day_of_week){
       vl_resolve_axis_y(how = "independent") %>% 
       vl_resolve_scale_y(how = "independent") %>% 
       vl_resolve_axis_x(how = "independent") %>%
-      vl_config_view(width = view_width, height = 150) %>% 
+      vl_config_view(width = view_width, height = view_height) %>% 
       vl_config_axis(grid = FALSE)
   } else {
     l3 <- vl_chart() %>%
@@ -294,9 +295,9 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
       vl_encode_y("duration_seconds:Q") %>%
       vl_encode_shape(value = "circle") %>%
       vl_encode_color(value = "grey") %>%
-      vl_encode_size(value = 25) %>%
+      vl_encode_size(value = 40) %>%
       vl_condition_size(test = "datum.fastest",
-                        value = 100) %>%
+                        value = 120) %>%
       vl_condition_color(test = "datum.fastest",
                          value = "red") %>%
       vl_condition_shape(test = "datum.fastest",
