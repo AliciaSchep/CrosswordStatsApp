@@ -71,7 +71,7 @@ ui <- dashboardPage(
                                           "Thu", "Fri", "Sat", "Sun"),
                               selected = "All", inline = TRUE), width = 4),
              box(uiOutput("dateSlider"), width = 4),
-             box(sliderInput("smoothWindow", "Moving Average Window:",
+             box(sliderInput("smoothWindow", "Moving Median Window:",
                              min = 1, max = 25,
                              value = 10, step = 1), width = 4)
            ),
