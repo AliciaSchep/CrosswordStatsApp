@@ -144,17 +144,36 @@ plot_distributions <-  function(df, width, date_range, day_of_week){
            #x_label = 70) %>%
     select(Day, duration_minutes, most_recent, percent_rank,text) 
   
+  bin_size <- chart_data %>% 
+    group_by(Day) %>% 
+    count() %>%
+    ungroup() %>% 
+    mutate(binwidth = 100 / (n-1))
+  
+  recent_df <- chart_data %>% 
+    filter(most_recent) %>% 
+    inner_join(bin_size, by = "Day") %>% 
+    mutate(x = if_else(percent_rank == 0, 0, percent_rank - (binwidth / 2)),
+           x2 = if_else(percent_rank == 100, 100, percent_rank + (binwidth / 2)) ,
+           y = 0) %>% 
+    select(Day, most_recent, x, x2, y)
+  
+  chart_data <- chart_data %>% 
+    left_join(recent_df, by = c("Day","most_recent"))
+   
   l1 <- vl_chart() %>% 
     vl_encode_y("duration_minutes:Q", title = "Solve Time (Minutes)") %>%
     vl_encode_x("percent_rank:Q", title = "Percentile") %>%
-    vl_mark_area(interpolate = "step")
+    vl_mark_area(interpolate = "step") 
   
-  l2 <- vl_chart() %>% 
+  l2 <- vl_chart() %>%
+    vl_mark_rect(color = 'red') %>% 
     vl_filter("datum.most_recent") %>%
-    vl_encode_y("duration_minutes:Q") %>%
-    vl_encode_x("percent_rank:Q", title = "Percentile") %>%
-    vl_encode_size(value = 3) %>%
-    vl_mark_rule(color = 'red')
+    vl_encode_x("x:Q", title = "Percentile") %>%
+    vl_encode_y("y:Q") %>%
+    vl_encode_x2("x2") %>%
+    vl_encode_y2("duration_minutes")
+    
  
   
   if (plot_all) {
