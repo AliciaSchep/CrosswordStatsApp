@@ -6,9 +6,11 @@ library(sparkline)
 library(hms)
 library(vlbuildr)
 library(vegawidget)
+library(googlesheets4)
 source("helpers.R")
 
-DATA_URL <- "https://docs.google.com/spreadsheets/d/e/2PACX-1vSHYo_DBWW53tMB-eezEaq1jXWy4Sr8QDsOR9ZtGQQrXQhPN6cpgEHbWcDB20D_p6O-HD3Pefscub9L/pub?gid=0&single=true&output=csv"
+SHEET_ID <- "1MdcIPs9d3cWLiI-98s3dvRhtKEaDkksEtGZcgH152pc"
+gs4_deauth()
 
 # Hacky approach for detecting click... using instead of an actionButton so that formatting is same as all the menu items
 refresh_menu <- menuItem("Refresh", href = "#", icon = icon("refresh"), newtab = FALSE)
@@ -135,7 +137,8 @@ server <- function(input, output, session) {
     # Re-read the data either after refresh button pressed or enought time elapsed
     input$refreshLink
     invalidateLater(1000000)
-    readr::read_csv(DATA_URL)
+    sheet = read_sheet(SHEET_ID, col_types = "Dc__") 
+    mutate(sheet, Duration = hms::parse_hms(Duration))
   })
   
   output$dateSlider <- renderUI({
