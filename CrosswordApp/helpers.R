@@ -215,7 +215,7 @@ plot_distributions <-  function(df, width, date_range, day_of_week){
   vegawidget(dist_plot)
 }
 
-plot_over_time <- function(df, width, window, date_range, day_of_week){
+plot_over_time <- function(df, width, window_func, window, date_range, day_of_week){
   if (is.null(date_range)) return(NULL)
   
   plot_all <- day_of_week == "All"
@@ -265,7 +265,7 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
     out <- vl_chart(chart_data) %>% 
       #vl_filter(glue("datum.rank >= {min_rank}")) %>%
       vl_window(frame = list(-(window - 1),0), 
-                window = list(vl$Window(field = "duration_seconds", op = "median", as = "rolling_median")), 
+                window = list(vl$Window(field = "duration_seconds", op = window_func, as = "rolling_func")), 
                 sort = list(list("field"= "Date", "order"= "ascending")),
                 groupby = list("Day")) %>%
       vl_filter("datum.rank > 2") %>%
@@ -275,7 +275,7 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
         list(year = lubridate::year(start_date), month = lubridate::month(start_date), day = lubridate::day(start_date)),
         list(year = lubridate::year(end_date), month = lubridate::month(end_date), day = lubridate::day(end_date))
       )) %>%
-      vl_encode_y("rolling_median:Q") %>%
+      vl_encode_y("rolling_func:Q") %>%
       vl_scale_y(domain = list(0, max_y * 1.05)) %>%
       vl_axis_x(title = NA) %>%
       vl_axis_y(labelExpr = "round(datum.value / 60)", title = "Solve Time (minutes)") %>%
@@ -287,7 +287,7 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
   } else {
     l1 <- vl_chart() %>% 
       vl_window(frame = list(-(window - 1),0), 
-                window = list(vl$Window(field = "duration_seconds", op = "median", as = "rolling_median")), 
+                window = list(vl$Window(field = "duration_seconds", op = window_func, as = "rolling_func")), 
                 sort = list(list("field"= "Date", "order"= "ascending")),
                 groupby = list("Day")) %>%
       # Putting this filter after the window makes sure it only affects where plotting is happening not
@@ -295,7 +295,7 @@ plot_over_time <- function(df, width, window, date_range, day_of_week){
       vl_filter("datum.rank > 2") %>% 
       vl_filter(glue("datum.valid")) %>%
       vl_encode_x("Date:T") %>%
-      vl_encode_y("rolling_median:Q") %>%
+      vl_encode_y("rolling_func:Q") %>%
       vl_mark_line(interpolate = "monotone", tooltip = glue("Moving median (Last {window} points)"), clip = TRUE) 
     
     l2 <- vl_chart() %>% 

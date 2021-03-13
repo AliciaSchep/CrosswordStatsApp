@@ -72,10 +72,11 @@ ui <- dashboardPage(
                               choices = c("All", "Mon", "Tue", "Wed",
                                           "Thu", "Fri", "Sat", "Sun"),
                               selected = "All", inline = TRUE), width = 4),
-             box(uiOutput("dateSlider"), width = 4),
-             box(sliderInput("smoothWindow", "Moving Median Window:",
+             box(uiOutput("dateSlider"), width = 3),
+             box(radioButtons("windowFunc","Window Function", choices = c("average","median")), width = 2),
+             box(sliderInput("smoothWindow", "Window:",
                              min = 1, max = 25,
-                             value = 10, step = 1), width = 4)
+                             value = 10, step = 1), width = 3)
            ),
            fluidRow(
             box(vegawidgetOutput("trendPlot"),
@@ -210,6 +211,7 @@ server <- function(input, output, session) {
       plot_over_time(
         c_data(), 
         ifelse(input$sidebarCollapsed, input$dimension[1], input$dimension[1] - sidebarWidth) * 0.75, 
+        input$windowFunc, 
         input$smoothWindow,
         input$dateRange,
         input$dayOfWeek)),
