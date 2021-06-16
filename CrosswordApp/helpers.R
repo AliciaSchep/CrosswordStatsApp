@@ -83,7 +83,7 @@ plot_streak_times <- function(df, width) {
   
   streak_agg <- streak_grouped %>%
     summarise(`Streak Start` = min(Date), len = n()) %>%
-    top_n(5, len)
+    top_n(8, len)
     
   streak_data <- streak_agg %>% 
     inner_join(ungroup(streak_grouped), by = "grp") %>%
